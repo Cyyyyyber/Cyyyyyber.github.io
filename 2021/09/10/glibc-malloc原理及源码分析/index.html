@@ -14,17 +14,22 @@
 <meta name="author" content="Cyyyber" />
 
 
-    
-    
 
-
-<meta property="og:type" content="website">
-<meta property="og:title" content="Cyyyber&#39;s Blog">
-<meta property="og:url" content="http://cyyyber.icu/index.html">
+<meta name="description" content="glibc2.26开始引入了tcache的技术，提升了堆管理的性能。本文根据glibc2.26的源码介绍含tcache技术的Linux堆分配原理。 基本概念arena以前的Linux使用的ldmalloc只支持单线程的堆分配，现在的ptmalloc2支持多线程的堆分配，因为它给每个线程分配了一块内存区，这个内存区就叫做arena。（其实arena的数量是有限制的，当线程数大于arena的数量上限的">
+<meta property="og:type" content="article">
+<meta property="og:title" content="glibc(2.26) malloc原理及源码分析">
+<meta property="og:url" content="http://cyyyber.icu/2021/09/10/glibc-malloc%E5%8E%9F%E7%90%86%E5%8F%8A%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90/index.html">
 <meta property="og:site_name" content="Cyyyber&#39;s Blog">
+<meta property="og:description" content="glibc2.26开始引入了tcache的技术，提升了堆管理的性能。本文根据glibc2.26的源码介绍含tcache技术的Linux堆分配原理。 基本概念arena以前的Linux使用的ldmalloc只支持单线程的堆分配，现在的ptmalloc2支持多线程的堆分配，因为它给每个线程分配了一块内存区，这个内存区就叫做arena。（其实arena的数量是有限制的，当线程数大于arena的数量上限的">
 <meta property="og:locale">
+<meta property="og:image" content="d:/Blog/article/malloc原理及源分析/malloc.png">
+<meta property="article:published_time" content="2021-09-10T12:59:03.413Z">
+<meta property="article:modified_time" content="2021-10-17T13:43:34.825Z">
 <meta property="article:author" content="Cyyyber">
+<meta property="article:tag" content="源码分析">
+<meta property="article:tag" content="pwn">
 <meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="d:/Blog/article/malloc原理及源分析/malloc.png">
 
 <link rel="apple-touch-icon" href= "/apple-touch-icon.png">
 
@@ -54,13 +59,11 @@
 
 
 
-    <style> .article { opacity: 0;} </style>
-
 
 <link href="//cdn.bootcss.com/font-awesome/4.6.3/css/font-awesome.min.css" rel="stylesheet">
 
 
-<title>Cyyyber&#39;s Blog</title>
+<title>glibc(2.26) malloc原理及源码分析 | Cyyyber&#39;s Blog</title>
 
 <script src="//cdn.bootcss.com/jquery/2.2.4/jquery.min.js"></script>
 <script src="//cdn.bootcss.com/clipboard.js/1.5.10/clipboard.min.js"></script>
@@ -69,8 +72,8 @@
     var yiliaConfig = {
         fancybox: true,
         animate: true,
-        isHome: true,
-        isPost: false,
+        isHome: false,
+        isPost: true,
         isArchive: false,
         isTag: false,
         isCategory: false,
@@ -245,9 +248,7 @@
     </div>
     <link class="menu-list" tags="标签" friends="友情链接" about="关于我"/>
 </nav>
-      <div class="body-wrap">
-  
-    <article id="post-glibc-malloc原理及源码分析" class="article article-type-post" itemscope itemprop="blogPost">
+      <div class="body-wrap"><article id="post-glibc-malloc原理及源码分析" class="article article-type-post" itemscope itemprop="blogPost">
   
     <div class="article-meta">
       <a href="/2021/09/10/glibc-malloc%E5%8E%9F%E7%90%86%E5%8F%8A%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90/" class="article-date">
@@ -265,12 +266,23 @@
       <header class="article-header">
         
   
-    <h1 itemprop="name">
-      <a class="article-title" href="/2021/09/10/glibc-malloc%E5%8E%9F%E7%90%86%E5%8F%8A%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90/">glibc(2.26) malloc原理及源码分析</a>
+    <h1 class="article-title" itemprop="name">
+      glibc(2.26) malloc原理及源码分析
     </h1>
   
 
       </header>
+      
+      <div class="article-info article-info-post">
+        
+
+        
+    <div class="article-tag tagcloud">
+        <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/pwn/" rel="tag">pwn</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90/" rel="tag">源码分析</a></li></ul>
+    </div>
+
+        <div class="clearfix"></div>
+      </div>
       
     
     <div class="article-entry" itemprop="articleBody">
@@ -348,97 +360,94 @@
       
     </div>
     
-    <div class="article-info article-info-index">
-      
-      
-
-      
-    <div class="article-tag tagcloud">
-        <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/pwn/" rel="tag">pwn</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90/" rel="tag">源码分析</a></li></ul>
-    </div>
-
-      
-      <div class="clearfix"></div>
-    </div>
-    
   </div>
   
-</article>
-
-
-
-
-
-
-
-
-
-  
-    <article id="post-hello-world" class="article article-type-post" itemscope itemprop="blogPost">
-  
-    <div class="article-meta">
-      <a href="/2021/09/10/hello-world/" class="article-date">
-      <time datetime="2021-09-10T09:14:27.543Z" itemprop="datePublished">2021-09-10</time>
-</a>
-
-
-    </div>
-  
-  <div class="article-inner">
     
-      <input type="hidden" class="isFancy" />
-    
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2021/09/10/hello-world/">Hello World</a>
-    </h1>
-  
-
-      </header>
-      
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-          
-              <p>Welcome to <a target="_blank" rel="noopener" href="https://hexo.io/">Hexo</a>! This is your very first post. Check <a target="_blank" rel="noopener" href="https://hexo.io/docs/">documentation</a> for more info. If you get any problems when using Hexo, you can find the answer in <a target="_blank" rel="noopener" href="https://hexo.io/docs/troubleshooting.html">troubleshooting</a> or you can ask me on <a target="_blank" rel="noopener" href="https://github.com/hexojs/hexo/issues">GitHub</a>.</p>
-          
-      
-    </div>
-    
-    <div class="article-info article-info-index">
-      
-      
-
-      
-    <div class="article-tag tagcloud">
-        <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/CTF/" rel="tag">CTF</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/%E8%AF%BB%E4%B9%A6%E7%AC%94%E8%AE%B0/" rel="tag">读书笔记</a></li></ul>
-    </div>
-
-      
-        <p class="article-more-link">
-          <a href="/2021/09/10/hello-world/#more">阅读全文 >></a>
+    <div class="copyright">
+        <p><span>本文标题:</span><a href="/2021/09/10/glibc-malloc%E5%8E%9F%E7%90%86%E5%8F%8A%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90/">glibc(2.26) malloc原理及源码分析</a></p>
+        <p><span>文章作者:</span><a href="/" title="回到主页"></a></p>
+        <p><span>发布时间:</span>2021-09-10, 20:59:03</p>
+        <p><span>最后更新:</span>2021-10-17, 21:43:34</p>
+        <p>
+            <span>原始链接:</span><a class="post-url" href="/2021/09/10/glibc-malloc%E5%8E%9F%E7%90%86%E5%8F%8A%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90/" title="glibc(2.26) malloc原理及源码分析">http://cyyyber.icu/2021/09/10/glibc-malloc%E5%8E%9F%E7%90%86%E5%8F%8A%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90/</a>
+            <span class="copy-path" data-clipboard-text="原文: http://cyyyber.icu/2021/09/10/glibc-malloc%E5%8E%9F%E7%90%86%E5%8F%8A%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90/　　作者: " title="点击复制文章链接"><i class="fa fa-clipboard"></i></span>
+            <script> var clipboard = new Clipboard('.copy-path'); </script>
         </p>
-      
-      <div class="clearfix"></div>
+        <p>
+            <span>许可协议:</span><i class="fa fa-creative-commons"></i> <a rel="license noopener" target="_blank" href="http://creativecommons.org/licenses/by-nc-sa/4.0/" title="CC BY-NC-SA 4.0 International" target = "_blank">"署名-非商用-相同方式共享 4.0"</a> 转载请保留原文链接及作者。
+        </p>
     </div>
-    
-  </div>
+
+
+
+    <nav id="article-nav">
+        
+        
+            <div id="article-nav-older" class="article-nav-title">
+                <a href="/2021/09/10/hello-world/">
+                    Hello World
+                </a>
+            </div>
+        
+    </nav>
+
   
 </article>
 
+    <div id="toc" class="toc-article">
+        <strong class="toc-title">文章目录</strong>
+        
+            <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#%E5%9F%BA%E6%9C%AC%E6%A6%82%E5%BF%B5"><span class="toc-number">1.</span> <span class="toc-text">基本概念</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#arena"><span class="toc-number">1.1.</span> <span class="toc-text">arena</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#bin"><span class="toc-number">1.2.</span> <span class="toc-text">bin</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#%E5%9F%BA%E6%9C%AC%E7%BB%93%E6%9E%84"><span class="toc-number">2.</span> <span class="toc-text">基本结构</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#malloc-chunk"><span class="toc-number">2.1.</span> <span class="toc-text">malloc_chunk</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#heap-info"><span class="toc-number">2.2.</span> <span class="toc-text">heap_info</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#malloc-state"><span class="toc-number">2.3.</span> <span class="toc-text">malloc_state</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#tcache-entry"><span class="toc-number">2.4.</span> <span class="toc-text">tcache_entry</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#tcache-perthread-struct"><span class="toc-number">2.5.</span> <span class="toc-text">tcache_perthread_struct</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#%E5%85%B3%E9%94%AE%E5%87%BD%E6%95%B0"><span class="toc-number">3.</span> <span class="toc-text">关键函数</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#libc-malloc"><span class="toc-number">3.1.</span> <span class="toc-text">__libc_malloc</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#tcache-init"><span class="toc-number">3.2.</span> <span class="toc-text">tcache_init</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#tcache-get"><span class="toc-number">3.3.</span> <span class="toc-text">tcache_get</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#int-malloc"><span class="toc-number">3.4.</span> <span class="toc-text">_int_malloc</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#fast-bin"><span class="toc-number">3.4.1.</span> <span class="toc-text">fast bin</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#small-bin"><span class="toc-number">3.4.2.</span> <span class="toc-text">small bin</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#large-bin1"><span class="toc-number">3.4.3.</span> <span class="toc-text">large bin1</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#unsorted-bin"><span class="toc-number">3.4.4.</span> <span class="toc-text">unsorted bin</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#large-bin2"><span class="toc-number">3.4.5.</span> <span class="toc-text">large bin2</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#block"><span class="toc-number">3.4.6.</span> <span class="toc-text">block</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#top-chunk"><span class="toc-number">3.4.7.</span> <span class="toc-text">top chunk</span></a></li></ol></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#%E6%80%BB%E7%BB%93"><span class="toc-number">4.</span> <span class="toc-text">总结</span></a></li></ol>
+        
+    </div>
+    <style>
+        .left-col .switch-btn,
+        .left-col .switch-area {
+            display: none;
+        }
+        .toc-level-3 i,
+        .toc-level-3 ol {
+            display: none !important;
+        }
+    </style>
+
+    <input type="button" id="tocButton" value="隐藏目录"  title="点击按钮隐藏或者显示文章目录">
+
+    <script>
+        yiliaConfig.toc = ["隐藏目录", "显示目录", !!"false"];
+    </script>
 
 
 
 
 
+    
 
 
 
-  
-  
+
+    <div class="scroll" id="post-nav-button">
+        
+            <a href="/" title="回到主页"><i class="fa fa-home"></i></a>
+        
+
+        <a title="文章列表"><i class="fa fa-bars"></i><i class="fa fa-times"></i></a>
+
+        
+            <a href="/2021/09/10/hello-world/" title="下一篇: Hello World">
+                <i class="fa fa-angle-right"></i>
+            </a>
+        
+    </div>
+
+    <ul class="post-list"><li class="post-list-item"><a class="post-list-link" href="/2021/09/10/glibc-malloc%E5%8E%9F%E7%90%86%E5%8F%8A%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90/">glibc(2.26) malloc原理及源码分析</a></li><li class="post-list-item"><a class="post-list-link" href="/2021/09/10/hello-world/">Hello World</a></li></ul>
+
+
+
+
+    <script>
+        
+    </script>
 </div>
       <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js">
 </script>
