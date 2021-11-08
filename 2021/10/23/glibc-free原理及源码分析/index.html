@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+
+    <!--[if lt IE 9]>
+        <style>body {display: none; background: none !important} </style>
+        <meta http-equiv="Refresh" Content="0; url=//outdatedbrowser.com/" />
+    <![endif]-->
+
+<meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge, chrome=1" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="format-detection" content="telephone=no" />
+<meta name="author" content="Cyyyber" />
+
+
+
+<meta name="description" content="上一篇文章主要介绍了glibc2.26下Linux堆的相关概念和分配原理，本文将继续根据glibc2.26的源码介绍Linux的堆释放原理。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="glibc(2.26) free原理及源码分析">
+<meta property="og:url" content="http://cyyyber.icu/2021/10/23/glibc-free%E5%8E%9F%E7%90%86%E5%8F%8A%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90/index.html">
+<meta property="og:site_name" content="Cyyyber&#39;s Blog">
+<meta property="og:description" content="上一篇文章主要介绍了glibc2.26下Linux堆的相关概念和分配原理，本文将继续根据glibc2.26的源码介绍Linux的堆释放原理。">
+<meta property="og:locale">
+<meta property="og:image" content="https://z3.ax1x.com/2021/10/23/5RkpjI.png">
+<meta property="article:published_time" content="2021-10-22T16:00:00.000Z">
+<meta property="article:modified_time" content="2021-11-08T02:58:39.862Z">
+<meta property="article:author" content="Cyyyber">
+<meta property="article:tag" content="pwn">
+<meta property="article:tag" content="源码分析">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://z3.ax1x.com/2021/10/23/5RkpjI.png">
+
+<link rel="apple-touch-icon" href= "/apple-touch-icon.png">
+
+
+    <link rel="alternate" href="/atom.xml" title="Cyyyber&#39;s Blog" type="application/atom+xml">
+
+
+
+    <link rel="shortcut icon" href="/favicon.ico">
+
+
+
+    <link href="//cdn.bootcss.com/animate.css/3.5.1/animate.min.css" rel="stylesheet">
+
+
+
+    <link href="//cdn.bootcss.com/fancybox/2.1.5/jquery.fancybox.min.css" rel="stylesheet">
+
+
+
+    <script src="//cdn.bootcss.com/pace/1.0.2/pace.min.js"></script>
+    <link href="//cdn.bootcss.com/pace/1.0.2/themes/blue/pace-theme-minimal.css" rel="stylesheet">
+
+
+
+<link rel="stylesheet" href="/css/style.css">
+
+
+
+
+<link href="//cdn.bootcss.com/font-awesome/4.6.3/css/font-awesome.min.css" rel="stylesheet">
+
+
+<title>glibc(2.26) free原理及源码分析 | Cyyyber&#39;s Blog</title>
+
+<script src="//cdn.bootcss.com/jquery/2.2.4/jquery.min.js"></script>
+<script src="//cdn.bootcss.com/clipboard.js/1.5.10/clipboard.min.js"></script>
+
+<script>
+    var yiliaConfig = {
+        fancybox: true,
+        animate: true,
+        isHome: false,
+        isPost: true,
+        isArchive: false,
+        isTag: false,
+        isCategory: false,
+        fancybox_js: "//cdn.bootcss.com/fancybox/2.1.5/jquery.fancybox.min.js",
+        scrollreveal: "//cdn.bootcss.com/scrollReveal.js/3.1.4/scrollreveal.min.js",
+        search: false
+    }
+</script>
+
+
+    <script>
+        yiliaConfig.jquery_ui = [true, "//cdn.bootcss.com/jqueryui/1.10.4/jquery-ui.min.js", "//cdn.bootcss.com/jqueryui/1.10.4/css/jquery-ui.min.css"];
+    </script>
+
+
+
+    <script> yiliaConfig.rootUrl = "\/";</script>
+
+
+
+
+
+
+<meta name="generator" content="Hexo 5.4.0"></head>
+<body>
+  <div id="container">
+    <div class="left-col">
+    <div class="overlay"></div>
+<div class="intrude-less">
+    <header id="header" class="inner">
+        <a href="/" class="profilepic">
+            <img src="/img/1.jpg" class="animated zoomIn">
+        </a>
+        <hgroup>
+          <h1 class="header-author"><a href="/"></a></h1>
+        </hgroup>
+
+        
+
+        
+
+
+        
+            <div id="switch-btn" class="switch-btn">
+                <div class="icon">
+                    <div class="icon-ctn">
+                        <div class="icon-wrap icon-house" data-idx="0">
+                            <div class="birdhouse"></div>
+                            <div class="birdhouse_holes"></div>
+                        </div>
+                        <div class="icon-wrap icon-ribbon hide" data-idx="1">
+                            <div class="ribbon"></div>
+                        </div>
+                        
+                        <div class="icon-wrap icon-link hide" data-idx="2">
+                            <div class="loopback_l"></div>
+                            <div class="loopback_r"></div>
+                        </div>
+                        
+                        
+                    </div>
+                    
+                </div>
+                <div class="tips-box hide">
+                    <div class="tips-arrow"></div>
+                    <ul class="tips-inner">
+                        <li>菜单</li>
+                        <li>标签</li>
+                        
+                        <li>友情链接</li>
+                        
+                        
+                    </ul>
+                </div>
+            </div>
+        
+
+        <div id="switch-area" class="switch-area">
+            <div class="switch-wrap">
+                <section class="switch-part switch-part1">
+                    <nav class="header-menu">
+                        <ul>
+                        
+                            <li><a href="/">主页</a></li>
+                        
+                            <li><a href="/archives/">所有文章</a></li>
+                        
+                            <li><a href="/tags/">标签云</a></li>
+                        
+                        </ul>
+                    </nav>
+                    <nav class="header-nav">
+                        <ul class="social">
+                            
+                                <a class="fa Email" href="mailto:cyyyber@qq.com" title="Email"></a>
+                            
+                                <a class="fa GitHub" target="_blank" rel="noopener" href="https://github.com/Cyyyyyber" title="GitHub"></a>
+                            
+                                <a class="fa RSS" href="/atom.xml" title="RSS"></a>
+                            
+                        </ul>
+                    </nav>
+                </section>
+                
+                
+                <section class="switch-part switch-part2">
+                    <div class="widget tagcloud" id="js-tagcloud">
+                        <ul class="tag-list" itemprop="keywords"><li class="tag-list-item"><a class="tag-list-link" href="/tags/CVE/" rel="tag">CVE</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/pwn/" rel="tag">pwn</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90/" rel="tag">源码分析</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E6%BC%8F%E6%B4%9E%E5%88%86%E6%9E%90/" rel="tag">漏洞分析</a></li></ul>
+                    </div>
+                </section>
+                
+                
+                
+                <section class="switch-part switch-part3">
+                    <div id="js-friends">
+                    
+                      <a class="main-nav-link switch-friends-link" target="_blank" rel="noopener" href="https://hexo.io">Hexo</a>
+                    
+                      <a class="main-nav-link switch-friends-link" target="_blank" rel="noopener" href="https://pages.github.com/">GitHub</a>
+                    
+                      <a class="main-nav-link switch-friends-link" target="_blank" rel="noopener" href="http://moxfive.xyz/">MOxFIVE</a>
+                    
+                    </div>
+                </section>
+                
+
+                
+            </div>
+        </div>
+    </header>                
+</div>
+    </div>
+    <div class="mid-col">
+      <nav id="mobile-nav">
+      <div class="overlay">
+          <div class="slider-trigger"></div>
+          <h1 class="header-author js-mobile-header hide"><a href="/" title="回到主页"></a></h1>
+      </div>
+    <div class="intrude-less">
+        <header id="header" class="inner">
+            <a href="/" class="profilepic">
+                <img src="/img/1.jpg" class="animated zoomIn">
+            </a>
+            <hgroup>
+              <h1 class="header-author"><a href="/" title="回到主页"></a></h1>
+            </hgroup>
+            
+            <nav class="header-menu">
+                <ul>
+                
+                    <li><a href="/">主页</a></li>
+                
+                    <li><a href="/archives/">所有文章</a></li>
+                
+                    <li><a href="/tags/">标签云</a></li>
+                
+                <div class="clearfix"></div>
+                </ul>
+            </nav>
+            <nav class="header-nav">
+                        <ul class="social">
+                            
+                                <a class="fa Email" target="_blank" href="mailto:cyyyber@qq.com" title="Email"></a>
+                            
+                                <a class="fa GitHub" target="_blank" href="https://github.com/Cyyyyyber" title="GitHub"></a>
+                            
+                                <a class="fa RSS" target="_blank" href="/atom.xml" title="RSS"></a>
+                            
+                        </ul>
+            </nav>
+        </header>                
+    </div>
+    <link class="menu-list" tags="标签" friends="友情链接" about="关于我"/>
+</nav>
+      <div class="body-wrap"><article id="post-glibc-free原理及源码分析" class="article article-type-post" itemscope itemprop="blogPost">
+  
+    <div class="article-meta">
+      <a href="/2021/10/23/glibc-free%E5%8E%9F%E7%90%86%E5%8F%8A%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90/" class="article-date">
+      <time datetime="2021-10-22T16:00:00.000Z" itemprop="datePublished">2021-10-23</time>
+</a>
+
+
+    </div>
+  
+  <div class="article-inner">
+    
+      <input type="hidden" class="isFancy" />
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 class="article-title" itemprop="name">
+      glibc(2.26) free原理及源码分析
+    </h1>
+  
+
+      </header>
+      
+      <div class="article-info article-info-post">
+        
+
+        
+    <div class="article-tag tagcloud">
+        <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/pwn/" rel="tag">pwn</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90/" rel="tag">源码分析</a></li></ul>
+    </div>
+
+        <div class="clearfix"></div>
+      </div>
+      
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+          
+        <p>上一篇文章主要介绍了glibc2.26下Linux堆的相关概念和分配原理，本文将继续根据glibc2.26的源码介绍Linux的堆释放原理。</p>
+<span id="more"></span>
+
+<h1 id="libc-free"><a href="#libc-free" class="headerlink" title="__libc_free"></a>__libc_free</h1><p>即<code>free</code>函数，主要就是判断chunk是否是由mmap分配的，如果是就调用<code>munmap_chunk</code>，如果不是就调用<code>_int_free</code></p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br></pre></td><td class="code"><pre><span class="line">    <span class="keyword">void</span> __libc_free(<span class="keyword">void</span> *mem)</span><br><span class="line">&#123;</span><br><span class="line">  mstate ar_ptr;</span><br><span class="line">  mchunkptr p; <span class="comment">/* chunk corresponding to mem */</span></span><br><span class="line">  <span class="comment">//如果__free_hook不为空就执行__free_hook</span></span><br><span class="line">  <span class="keyword">void</span> (*hook)(<span class="keyword">void</span> *, <span class="keyword">const</span> <span class="keyword">void</span> *) = atomic_forced_read(__free_hook);</span><br><span class="line">  <span class="keyword">if</span> (__builtin_expect(hook != <span class="literal">NULL</span>, <span class="number">0</span>))</span><br><span class="line">  &#123;</span><br><span class="line">    (*hook)(mem, RETURN_ADDRESS(<span class="number">0</span>));</span><br><span class="line">    <span class="keyword">return</span>;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">if</span> (mem == <span class="number">0</span>) <span class="comment">/* free(0) has no effect */</span></span><br><span class="line">    <span class="keyword">return</span>;</span><br><span class="line">  <span class="comment">//将指向用户数据的指针转换成指向chunk头的指针</span></span><br><span class="line">  p = mem2chunk(mem);</span><br><span class="line">  <span class="comment">//判断p是否是由mmap分配</span></span><br><span class="line">  <span class="keyword">if</span> (chunk_is_mmapped(p)) <span class="comment">/* release mmapped memory. */</span></span><br><span class="line">  &#123;</span><br><span class="line">    <span class="comment">/* See if the dynamic brk/mmap threshold needs adjusting.</span></span><br><span class="line"><span class="comment">	 Dumped fake mmapped chunks do not affect the threshold.  */</span></span><br><span class="line">    <span class="comment">//检查是否需要调整阀值</span></span><br><span class="line">    <span class="keyword">if</span> (!mp_.no_dyn_threshold &amp;&amp; chunksize_nomask(p) &gt; mp_.mmap_threshold &amp;&amp; chunksize_nomask(p) &lt;= DEFAULT_MMAP_THRESHOLD_MAX &amp;&amp; !DUMPED_MAIN_ARENA_CHUNK(p))</span><br><span class="line">    &#123;</span><br><span class="line">      mp_.mmap_threshold = chunksize(p);</span><br><span class="line">      mp_.trim_threshold = <span class="number">2</span> * mp_.mmap_threshold;</span><br><span class="line">      LIBC_PROBE(memory_mallopt_free_dyn_thresholds, <span class="number">2</span>,</span><br><span class="line">                 mp_.mmap_threshold, mp_.trim_threshold);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">//调用munmap_chunk来释放由mmap分配的chunk</span></span><br><span class="line">    munmap_chunk(p);</span><br><span class="line">    <span class="keyword">return</span>;</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="comment">//如果tcache没有初始化就先初始化tcache</span></span><br><span class="line">  MAYBE_INIT_TCACHE();</span><br><span class="line">        </span><br><span class="line">  ar_ptr = arena_for_chunk(p);<span class="comment">//p所对应的malloc_state结构体</span></span><br><span class="line">  _int_free(ar_ptr, p, <span class="number">0</span>);<span class="comment">//调用_int_free进行更进一步的free操作</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h2 id="munmap-chunk"><a href="#munmap-chunk" class="headerlink" title="munmap_chunk"></a>munmap_chunk</h2><p><code>munmap_chunk</code>找到p的前一个chunk，然后利用系统调用<code>__munmap</code>将两个chunk一起释放，但是mmap分配的chunk是独立的，所以大部分情况下只是释放了p</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">static</span> <span class="keyword">void</span></span></span><br><span class="line"><span class="function">    internal_function</span></span><br><span class="line"><span class="function">    <span class="title">munmap_chunk</span><span class="params">(mchunkptr p)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">  INTERNAL_SIZE_T size = chunksize(p);</span><br><span class="line"></span><br><span class="line">  assert(chunk_is_mmapped(p));</span><br><span class="line"></span><br><span class="line">  <span class="comment">/* Do nothing if the chunk is a faked mmapped chunk in the dumped</span></span><br><span class="line"><span class="comment">     main arena.  We never free this memory.  */</span></span><br><span class="line">  <span class="keyword">if</span> (DUMPED_MAIN_ARENA_CHUNK(p))</span><br><span class="line">    <span class="keyword">return</span>;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">uintptr_t</span> block = (<span class="keyword">uintptr_t</span>)p - prev_size(p);<span class="comment">//前一个chunk的指针</span></span><br><span class="line">  <span class="keyword">size_t</span> total_size = prev_size(p) + size;<span class="comment">//两个chunk的size之和</span></span><br><span class="line">  <span class="comment">/* Unfortunately we have to do the compilers job by hand here.  Normally</span></span><br><span class="line"><span class="comment">     we would test BLOCK and TOTAL-SIZE separately for compliance with the</span></span><br><span class="line"><span class="comment">     page size.  But gcc does not recognize the optimization possibility</span></span><br><span class="line"><span class="comment">     (in the moment at least) so we combine the two values into one before</span></span><br><span class="line"><span class="comment">     the bit test.  */</span></span><br><span class="line">  <span class="keyword">if</span> (__builtin_expect(((block | total_size) &amp; (GLRO(dl_pagesize) - <span class="number">1</span>)) != <span class="number">0</span>, <span class="number">0</span>))</span><br><span class="line">    malloc_printerr(<span class="string">&quot;munmap_chunk(): invalid pointer&quot;</span>);</span><br><span class="line"></span><br><span class="line">  atomic_decrement(&amp;mp_.n_mmaps);</span><br><span class="line">  atomic_add(&amp;mp_.mmapped_mem, -total_size);<span class="comment">//mmapped_mem减去total_size</span></span><br><span class="line"></span><br><span class="line">  <span class="comment">/* If munmap failed the process virtual memory address space is in a</span></span><br><span class="line"><span class="comment">     bad shape.  Just leave the block hanging around, the process will</span></span><br><span class="line"><span class="comment">     terminate shortly anyway since not much can be done.  */</span></span><br><span class="line">  __munmap((<span class="keyword">char</span> *)block, total_size);<span class="comment">//系统调用</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h2 id="int-free"><a href="#int-free" class="headerlink" title="_int_free"></a>_int_free</h2><p>先尝试放入tcache，如果不行就尝试放入fast bin，最后进行合并操作后放入unsorted bin</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">static</span> <span class="keyword">void</span></span><br><span class="line">_int_free(mstate av, mchunkptr p, <span class="keyword">int</span> have_lock)</span><br><span class="line">&#123;</span><br><span class="line">  INTERNAL_SIZE_T size;     <span class="comment">/* its size */</span></span><br><span class="line">  mfastbinptr *fb;          <span class="comment">/* associated fastbin */</span></span><br><span class="line">  mchunkptr nextchunk;      <span class="comment">/* next contiguous chunk */</span></span><br><span class="line">  INTERNAL_SIZE_T nextsize; <span class="comment">/* its size */</span></span><br><span class="line">  <span class="keyword">int</span> nextinuse;            <span class="comment">/* true if nextchunk is used */</span></span><br><span class="line">  INTERNAL_SIZE_T prevsize; <span class="comment">/* size of previous contiguous chunk */</span></span><br><span class="line">  mchunkptr bck;            <span class="comment">/* misc temp for linking */</span></span><br><span class="line">  mchunkptr fwd;            <span class="comment">/* misc temp for linking */</span></span><br><span class="line"></span><br><span class="line">  size = chunksize(p);</span><br><span class="line"></span><br><span class="line">  <span class="comment">/* Little security check which won&#x27;t hurt performance: the</span></span><br><span class="line"><span class="comment">     allocator never wrapps around at the end of the address space.</span></span><br><span class="line"><span class="comment">     Therefore we can exclude some size values which might appear</span></span><br><span class="line"><span class="comment">     here by accident or by &quot;design&quot; from some intruder.  */</span></span><br><span class="line">  <span class="keyword">if</span> (__builtin_expect((<span class="keyword">uintptr_t</span>)p &gt; (<span class="keyword">uintptr_t</span>)-size, <span class="number">0</span>) || __builtin_expect(misaligned_chunk(p), <span class="number">0</span>))</span><br><span class="line">    malloc_printerr(<span class="string">&quot;free(): invalid pointer&quot;</span>);</span><br><span class="line">  <span class="comment">/* We know that each chunk is at least MINSIZE bytes in size or a</span></span><br><span class="line"><span class="comment">     multiple of MALLOC_ALIGNMENT.  */</span></span><br><span class="line">  <span class="comment">//对size进行检查</span></span><br><span class="line">  <span class="keyword">if</span> (__glibc_unlikely(size &lt; MINSIZE || !aligned_OK(size)))</span><br><span class="line">    malloc_printerr(<span class="string">&quot;free(): invalid size&quot;</span>);</span><br><span class="line"></span><br><span class="line">  check_inuse_chunk(av, p);</span><br></pre></td></tr></table></figure>
+
+<h3 id="tcache"><a href="#tcache" class="headerlink" title="tcache"></a>tcache</h3><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="meta-keyword">if</span> USE_TCACHE</span></span><br><span class="line">  &#123;</span><br><span class="line">    <span class="keyword">size_t</span> tc_idx = csize2tidx(size);</span><br><span class="line"></span><br><span class="line">    <span class="comment">//如果tcache未满，直接放入tcache后返回</span></span><br><span class="line">    <span class="keyword">if</span> (tcache &amp;&amp; tc_idx &lt; mp_.tcache_bins &amp;&amp; tcache-&gt;counts[tc_idx] &lt; mp_.tcache_count)</span><br><span class="line">    &#123;</span><br><span class="line">      tcache_put(p, tc_idx);<span class="comment">//将chunk放入对应的tcache链表</span></span><br><span class="line">      <span class="keyword">return</span>;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line"><span class="meta">#<span class="meta-keyword">endif</span></span></span><br></pre></td></tr></table></figure>
+
+<p>放入tcache后会直接返回，不会做后面的合并操作</p>
+<h3 id="fast-bin"><a href="#fast-bin" class="headerlink" title="fast bin"></a>fast bin</h3><p>如果chunk属于fast bin的范围，就将chunk放入fast bin</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br></pre></td><td class="code"><pre><span class="line">  <span class="comment">/*</span></span><br><span class="line"><span class="comment">    If eligible, place chunk on a fastbin so it can be found</span></span><br><span class="line"><span class="comment">    and used quickly in malloc.</span></span><br><span class="line"><span class="comment">  */</span></span><br><span class="line">  <span class="comment">//如果p的size小于等于fast bin的最大size则将p放入fast bin</span></span><br><span class="line">  <span class="keyword">if</span> ((<span class="keyword">unsigned</span> <span class="keyword">long</span>)(size) &lt;= (<span class="keyword">unsigned</span> <span class="keyword">long</span>)(get_max_fast())</span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="meta-keyword">if</span> TRIM_FASTBINS</span></span><br><span class="line">      <span class="comment">/*</span></span><br><span class="line"><span class="comment">	If TRIM_FASTBINS set, don&#x27;t place chunks</span></span><br><span class="line"><span class="comment">	bordering top into fastbins</span></span><br><span class="line"><span class="comment">      */</span></span><br><span class="line">      <span class="comment">//如果TRIM_FASTBINS被设置为1则不要将与top chunk相邻的chunk放入fast bin</span></span><br><span class="line">      &amp;&amp; (chunk_at_offset(p, size) != av-&gt;top)</span><br><span class="line"><span class="meta">#<span class="meta-keyword">endif</span></span></span><br><span class="line">  )</span><br><span class="line">  &#123;</span><br><span class="line">    <span class="comment">//检查下一个chunk的size的合法性</span></span><br><span class="line">    <span class="keyword">if</span> (__builtin_expect(chunksize_nomask(chunk_at_offset(p, size)) &lt;= <span class="number">2</span> * SIZE_SZ, <span class="number">0</span>) || __builtin_expect(chunksize(chunk_at_offset(p, size)) &gt;= av-&gt;system_mem, <span class="number">0</span>))</span><br><span class="line">    &#123;</span><br><span class="line">      <span class="keyword">bool</span> fail = <span class="literal">true</span>;</span><br><span class="line">      <span class="comment">/* We might not have a lock at this point and concurrent modifications</span></span><br><span class="line"><span class="comment">	   of system_mem might result in a false positive.  Redo the test after</span></span><br><span class="line"><span class="comment">	   getting the lock.  */</span></span><br><span class="line">      <span class="comment">//如果刚才的结果是在不加锁的情况下获得的，就会由于系统的并发修改而不正确</span></span><br><span class="line">      <span class="comment">//所以在加锁的情况下再做一遍合法性测试</span></span><br><span class="line">      <span class="keyword">if</span> (!have_lock)</span><br><span class="line">      &#123;</span><br><span class="line">        __libc_lock_lock(av-&gt;mutex);</span><br><span class="line">        fail = (chunksize_nomask(chunk_at_offset(p, size)) &lt;= <span class="number">2</span> * SIZE_SZ || chunksize(chunk_at_offset(p, size)) &gt;= av-&gt;system_mem);</span><br><span class="line">        __libc_lock_unlock(av-&gt;mutex);</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">      <span class="keyword">if</span> (fail)</span><br><span class="line">        malloc_printerr(<span class="string">&quot;free(): invalid next size (fast)&quot;</span>);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">//将p的数据部分清空</span></span><br><span class="line">    free_perturb(chunk2mem(p), size - <span class="number">2</span> * SIZE_SZ);</span><br><span class="line"></span><br><span class="line">    atomic_store_relaxed(&amp;av-&gt;have_fastchunks, <span class="literal">true</span>);<span class="comment">//将have_fastchunks置为1</span></span><br><span class="line">    <span class="keyword">unsigned</span> <span class="keyword">int</span> idx = fastbin_index(size);</span><br><span class="line">    fb = &amp;fastbin(av, idx);</span><br><span class="line"></span><br><span class="line">    <span class="comment">/* Atomically link P to its fastbin: P-&gt;FD = *FB; *FB = P;  */</span></span><br><span class="line">    mchunkptr old = *fb, old2;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (SINGLE_THREAD_P)</span><br><span class="line">    &#123;</span><br><span class="line">      <span class="comment">/* Check that the top of the bin is not the record we are going to</span></span><br><span class="line"><span class="comment">	   add (i.e., double free).  */</span></span><br><span class="line">      <span class="comment">//检查fast bin第一个chunk是不是要放入的chunk，防止double free</span></span><br><span class="line">      <span class="keyword">if</span> (__builtin_expect(old == p, <span class="number">0</span>))</span><br><span class="line">        malloc_printerr(<span class="string">&quot;double free or corruption (fasttop)&quot;</span>);</span><br><span class="line">      <span class="comment">//将p插入fast bin链表</span></span><br><span class="line">      p-&gt;fd = old;</span><br><span class="line">      *fb = p;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">else</span></span><br><span class="line">      <span class="keyword">do</span></span><br><span class="line">      &#123;</span><br><span class="line">        <span class="comment">/* Check that the top of the bin is not the record we are going to</span></span><br><span class="line"><span class="comment">	     add (i.e., double free).  */</span></span><br><span class="line">        <span class="keyword">if</span> (__builtin_expect(old == p, <span class="number">0</span>))</span><br><span class="line">          malloc_printerr(<span class="string">&quot;double free or corruption (fasttop)&quot;</span>);</span><br><span class="line">        <span class="comment">//将p插入fast bin链表</span></span><br><span class="line">        p-&gt;fd = old2 = old;</span><br><span class="line">      &#125; <span class="keyword">while</span> ((old = catomic_compare_and_exchange_val_rel(fb, p, old2)) != old2);</span><br><span class="line"></span><br><span class="line">    <span class="comment">/* Check that size of fastbin chunk at the top is the same as</span></span><br><span class="line"><span class="comment">       size of the chunk that we are adding.  We can dereference OLD</span></span><br><span class="line"><span class="comment">       only if we have the lock, otherwise it might have already been</span></span><br><span class="line"><span class="comment">       allocated again.  */</span></span><br><span class="line">    <span class="comment">//在保证加锁的情况下检查新的chunk是否加入了正确的fast bin链表</span></span><br><span class="line">    <span class="keyword">if</span> (have_lock &amp;&amp; old != <span class="literal">NULL</span> &amp;&amp; __builtin_expect(fastbin_index(chunksize(old)) != idx, <span class="number">0</span>))</span><br><span class="line">      malloc_printerr(<span class="string">&quot;invalid fastbin entry (free)&quot;</span>);</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="unsorted-bin-and-consolidate"><a href="#unsorted-bin-and-consolidate" class="headerlink" title="unsorted bin and consolidate"></a>unsorted bin and consolidate</h3><p>如果不能放入fast bin就放入unsorted bin，顺便与相邻的空闲chunk进行合并</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/*</span></span><br><span class="line"><span class="comment">    Consolidate other non-mmapped chunks as they arrive.</span></span><br><span class="line"><span class="comment">  */</span></span><br><span class="line">  <span class="comment">//如果p不满足fast bin，并且不属于mmap，就与相邻的未使用chunk合并放入unsorted bin</span></span><br><span class="line">  <span class="keyword">else</span> <span class="keyword">if</span> (!chunk_is_mmapped(p))</span><br><span class="line">  &#123;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/* If we&#x27;re single-threaded, don&#x27;t lock the arena.  */</span></span><br><span class="line">    <span class="keyword">if</span> (SINGLE_THREAD_P)</span><br><span class="line">      have_lock = <span class="literal">true</span>;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (!have_lock)</span><br><span class="line">      __libc_lock_lock(av-&gt;mutex);</span><br><span class="line"></span><br><span class="line">    nextchunk = chunk_at_offset(p, size);</span><br><span class="line"></span><br><span class="line">    <span class="comment">/* Lightweight tests: check whether the block is already the</span></span><br><span class="line"><span class="comment">       top block.  */</span></span><br><span class="line">    <span class="comment">//一些安全性检查：检查p是否是top chunk</span></span><br><span class="line">    <span class="keyword">if</span> (__glibc_unlikely(p == av-&gt;top))</span><br><span class="line">      malloc_printerr(<span class="string">&quot;double free or corruption (top)&quot;</span>);</span><br><span class="line">    <span class="comment">/* Or whether the next chunk is beyond the boundaries of the arena.  */</span></span><br><span class="line">    <span class="comment">//检查p的下一个chunk是否已经超出arena区域</span></span><br><span class="line">    <span class="keyword">if</span> (__builtin_expect(contiguous(av) &amp;&amp; (<span class="keyword">char</span> *)nextchunk &gt;= ((<span class="keyword">char</span> *)av-&gt;top + chunksize(av-&gt;top)), <span class="number">0</span>))</span><br><span class="line">      malloc_printerr(<span class="string">&quot;double free or corruption (out)&quot;</span>);</span><br><span class="line">    <span class="comment">/* Or whether the block is actually not marked used.  */</span></span><br><span class="line">    <span class="comment">//检查p是否实际上没有被标记为正在使用</span></span><br><span class="line">    <span class="keyword">if</span> (__glibc_unlikely(!prev_inuse(nextchunk)))</span><br><span class="line">      malloc_printerr(<span class="string">&quot;double free or corruption (!prev)&quot;</span>);</span><br><span class="line"></span><br><span class="line">    nextsize = chunksize(nextchunk);</span><br><span class="line">    <span class="comment">//检查下一个chunk的size的合法性</span></span><br><span class="line">    <span class="keyword">if</span> (__builtin_expect(chunksize_nomask(nextchunk) &lt;= <span class="number">2</span> * SIZE_SZ, <span class="number">0</span>) || __builtin_expect(nextsize &gt;= av-&gt;system_mem, <span class="number">0</span>))</span><br><span class="line">      malloc_printerr(<span class="string">&quot;free(): invalid next size (normal)&quot;</span>);</span><br><span class="line">    <span class="comment">//清空p的数据区域</span></span><br><span class="line">    free_perturb(chunk2mem(p), size - <span class="number">2</span> * SIZE_SZ);</span><br><span class="line"></span><br><span class="line">    <span class="comment">/* consolidate backward */</span></span><br><span class="line">    <span class="comment">//如果上一个chunk没有被使用，则向上合并</span></span><br><span class="line">    <span class="keyword">if</span> (!prev_inuse(p))</span><br><span class="line">    &#123;</span><br><span class="line">      prevsize = prev_size(p);</span><br><span class="line">      size += prevsize;</span><br><span class="line">      p = chunk_at_offset(p, -((<span class="keyword">long</span>)prevsize));</span><br><span class="line">      unlink(av, p, bck, fwd);<span class="comment">//将p从链表中解出</span></span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">//如果下一个chunk不是top chunk并且没有被使用，则向下合并</span></span><br><span class="line">    <span class="keyword">if</span> (nextchunk != av-&gt;top)</span><br><span class="line">    &#123;</span><br><span class="line">      <span class="comment">/* get and clear inuse bit */</span></span><br><span class="line">      nextinuse = inuse_bit_at_offset(nextchunk, nextsize);</span><br><span class="line"></span><br><span class="line">      <span class="comment">/* consolidate forward */</span></span><br><span class="line">      <span class="keyword">if</span> (!nextinuse)</span><br><span class="line">      &#123;</span><br><span class="line">        unlink(av, nextchunk, bck, fwd);<span class="comment">//将p的下一个chunk从链表中解出</span></span><br><span class="line">        size += nextsize;</span><br><span class="line">      &#125;</span><br><span class="line">      <span class="comment">//如果下一个chunk被使用了则将当前chunk设置为未使用</span></span><br><span class="line">      <span class="keyword">else</span></span><br><span class="line">        clear_inuse_bit_at_offset(nextchunk, <span class="number">0</span>);</span><br><span class="line"></span><br><span class="line">      <span class="comment">/*</span></span><br><span class="line"><span class="comment">	Place the chunk in unsorted chunk list. Chunks are</span></span><br><span class="line"><span class="comment">	not placed into regular bins until after they have</span></span><br><span class="line"><span class="comment">	been given one chance to be used in malloc.</span></span><br><span class="line"><span class="comment">      */</span></span><br><span class="line">	  <span class="comment">//将p放入unsorted bin链表</span></span><br><span class="line">      bck = unsorted_chunks(av);</span><br><span class="line">      fwd = bck-&gt;fd;</span><br><span class="line">      <span class="keyword">if</span> (__glibc_unlikely(fwd-&gt;bk != bck))</span><br><span class="line">        malloc_printerr(<span class="string">&quot;free(): corrupted unsorted chunks&quot;</span>);</span><br><span class="line">      p-&gt;fd = fwd;</span><br><span class="line">      p-&gt;bk = bck;</span><br><span class="line">      <span class="comment">//如果p的大小属于large bin的范围就将fd_nextsize和bk_nextsize指针置空</span></span><br><span class="line">      <span class="keyword">if</span> (!in_smallbin_range(size))</span><br><span class="line">      &#123;</span><br><span class="line">        p-&gt;fd_nextsize = <span class="literal">NULL</span>;</span><br><span class="line">        p-&gt;bk_nextsize = <span class="literal">NULL</span>;</span><br><span class="line">      &#125;</span><br><span class="line">      bck-&gt;fd = p;</span><br><span class="line">      fwd-&gt;bk = p;</span><br><span class="line"></span><br><span class="line">      set_head(p, size | PREV_INUSE);</span><br><span class="line">      set_foot(p, size);</span><br><span class="line"></span><br><span class="line">      check_free_chunk(av, p);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/*</span></span><br><span class="line"><span class="comment">      If the chunk borders the current high end of memory,</span></span><br><span class="line"><span class="comment">      consolidate into top</span></span><br><span class="line"><span class="comment">    */</span></span><br><span class="line">	<span class="comment">//如果p与top chunk相邻就合并到top chunk里</span></span><br><span class="line">    <span class="keyword">else</span></span><br><span class="line">    &#123;</span><br><span class="line">      size += nextsize;</span><br><span class="line">      set_head(p, size | PREV_INUSE);</span><br><span class="line">      av-&gt;top = p;</span><br><span class="line">      check_chunk(av, p);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/*</span></span><br><span class="line"><span class="comment">      If freeing a large space, consolidate possibly-surrounding</span></span><br><span class="line"><span class="comment">      chunks. Then, if the total unused topmost memory exceeds trim</span></span><br><span class="line"><span class="comment">      threshold, ask malloc_trim to reduce top.</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">      Unless max_fast is 0, we don&#x27;t know if there are fastbins</span></span><br><span class="line"><span class="comment">      bordering top, so we cannot tell for sure whether threshold</span></span><br><span class="line"><span class="comment">      has been reached unless fastbins are consolidated.  But we</span></span><br><span class="line"><span class="comment">      don&#x27;t want to consolidate on each free.  As a compromise,</span></span><br><span class="line"><span class="comment">      consolidation is performed if FASTBIN_CONSOLIDATION_THRESHOLD</span></span><br><span class="line"><span class="comment">      is reached.</span></span><br><span class="line"><span class="comment">    */</span></span><br><span class="line">	<span class="comment">//如果要合并之后chunk过大，就合并fast bin，并考虑减小top chunk</span></span><br><span class="line">    <span class="keyword">if</span> ((<span class="keyword">unsigned</span> <span class="keyword">long</span>)(size) &gt;= FASTBIN_CONSOLIDATION_THRESHOLD)</span><br><span class="line">    &#123;</span><br><span class="line">      <span class="keyword">if</span> (atomic_load_relaxed(&amp;av-&gt;have_fastchunks))</span><br><span class="line">        malloc_consolidate(av);<span class="comment">//合并fast bin</span></span><br><span class="line">	  <span class="comment">//如果是main arena，并且top chunk的大小超出了阀值就缩减top chunk的大小</span></span><br><span class="line">      <span class="keyword">if</span> (av == &amp;main_arena)</span><br><span class="line">      &#123;</span><br><span class="line"><span class="meta">#<span class="meta-keyword">ifndef</span> MORECORE_CANNOT_TRIM</span></span><br><span class="line">        <span class="keyword">if</span> ((<span class="keyword">unsigned</span> <span class="keyword">long</span>)(chunksize(av-&gt;top)) &gt;=</span><br><span class="line">            (<span class="keyword">unsigned</span> <span class="keyword">long</span>)(mp_.trim_threshold))</span><br><span class="line">          systrim(mp_.top_pad, av);</span><br><span class="line"><span class="meta">#<span class="meta-keyword">endif</span></span></span><br><span class="line">      &#125;</span><br><span class="line">      <span class="comment">//如果不是main arena就调用heap_trim缩减大小</span></span><br><span class="line">      <span class="keyword">else</span></span><br><span class="line">      &#123;</span><br><span class="line">        <span class="comment">/* Always try heap_trim(), even if the top chunk is not</span></span><br><span class="line"><span class="comment">	   large, because the corresponding heap might go away.  */</span></span><br><span class="line">        heap_info *heap = heap_for_ptr(top(av));</span><br><span class="line"></span><br><span class="line">        assert(heap-&gt;ar_ptr == av);</span><br><span class="line">        heap_trim(heap, mp_.top_pad);</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (!have_lock)</span><br><span class="line">      __libc_lock_unlock(av-&gt;mutex);</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="comment">/*</span></span><br><span class="line"><span class="comment">    If the chunk was allocated via mmap, release via munmap().</span></span><br><span class="line"><span class="comment">  */</span></span><br><span class="line">  <span class="comment">//如果chunk是通过mmap分配的就调用munmap_chunk来释放</span></span><br><span class="line">  <span class="keyword">else</span></span><br><span class="line">  &#123;</span><br><span class="line">    munmap_chunk(p);</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h2 id="tcache-put"><a href="#tcache-put" class="headerlink" title="tcache_put"></a>tcache_put</h2><p>因为tcache_put没有做太多的安全性检查，所以在调用之前要确保<code>tc_idx</code>合法且tcache链未满</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/* Caller must ensure that we know tc_idx is valid and there&#x27;s room</span></span><br><span class="line"><span class="comment">   for more chunks.  */</span></span><br><span class="line"><span class="function"><span class="keyword">static</span> __always_inline <span class="keyword">void</span></span></span><br><span class="line"><span class="function"><span class="title">tcache_put</span><span class="params">(mchunkptr chunk, <span class="keyword">size_t</span> tc_idx)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">  tcache_entry *e = (tcache_entry *)chunk2mem(chunk);<span class="comment">//将chunk转成内存地址形式</span></span><br><span class="line">  assert(tc_idx &lt; TCACHE_MAX_BINS);<span class="comment">//确保tc_idx的合法性</span></span><br><span class="line">  <span class="comment">//将e插入链表</span></span><br><span class="line">  e-&gt;next = tcache-&gt;entries[tc_idx];</span><br><span class="line">  tcache-&gt;entries[tc_idx] = e;</span><br><span class="line">  <span class="comment">//链表中的chunk数加一</span></span><br><span class="line">  ++(tcache-&gt;counts[tc_idx]);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h2 id="unlink"><a href="#unlink" class="headerlink" title="unlink"></a>unlink</h2><p>unlink将一个chunk从链表中移除，但是它只检查了P前后的chunk是否都指向它，如果我们伪造P的<code>fd</code>和<code>bk</code>，可以将一个 内存地址<code>ptr</code>的值修改为<code>ptr-0x18</code>的值</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/* Take a chunk off a bin list */</span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> unlink(AV, P, BK, FD)                                                                                               \</span></span><br><span class="line"><span class="meta">  &#123;                                                                                                                         \</span></span><br><span class="line"><span class="meta">    <span class="comment">//检查p的两处size是否一致，即p中存储的自己的size和p的下一个chunk存储的p的size</span></span></span><br><span class="line">    <span class="keyword">if</span> (__builtin_expect(chunksize(P) != prev_size(next_chunk(P)), <span class="number">0</span>))                                                      \</span><br><span class="line">      malloc_printerr(<span class="string">&quot;corrupted size vs. prev_size&quot;</span>);                                                                      \</span><br><span class="line">    FD = P-&gt;fd;                                                                                                             \</span><br><span class="line">    BK = P-&gt;bk;                                                                                                             \</span><br><span class="line">    <span class="comment">//检查p的前后两个chunk是否都指向p</span></span><br><span class="line">    <span class="keyword">if</span> (__builtin_expect(FD-&gt;bk != P || BK-&gt;fd != P, <span class="number">0</span>))                                                                    \</span><br><span class="line">      malloc_printerr(<span class="string">&quot;corrupted double-linked list&quot;</span>);                                                                      \</span><br><span class="line">    <span class="keyword">else</span>                                                                                                                    \</span><br><span class="line">    &#123;                                                                                                                       \</span><br><span class="line">      <span class="comment">//将p从链表中移除</span></span><br><span class="line">      FD-&gt;bk = BK;                                                                                                          \</span><br><span class="line">      BK-&gt;fd = FD;                                                                                                          \</span><br><span class="line">      <span class="comment">//如果是large bin还要处理nextsize指针</span></span><br><span class="line">      <span class="keyword">if</span> (!in_smallbin_range(chunksize_nomask(P)) &amp;&amp; __builtin_expect(P-&gt;fd_nextsize != <span class="literal">NULL</span>, <span class="number">0</span>))                           \</span><br><span class="line">      &#123;                                                                                                                     \</span><br><span class="line">        <span class="comment">//检查前后chunk的nextsize指针是否合法</span></span><br><span class="line">        <span class="keyword">if</span> (__builtin_expect(P-&gt;fd_nextsize-&gt;bk_nextsize != P, <span class="number">0</span>) || __builtin_expect(P-&gt;bk_nextsize-&gt;fd_nextsize != P, <span class="number">0</span>)) \</span><br><span class="line">          malloc_printerr(<span class="string">&quot;corrupted double-linked list (not small)&quot;</span>);                                                      \</span><br><span class="line">        <span class="comment">//根据不同情况将p从nextsize链中移除</span></span><br><span class="line">        <span class="keyword">if</span> (FD-&gt;fd_nextsize == <span class="literal">NULL</span>)                                                                                        \</span><br><span class="line">        &#123;                                                                                                                   \</span><br><span class="line">          <span class="comment">//如果链表中只有一种大小的chunk</span></span><br><span class="line">          <span class="keyword">if</span> (P-&gt;fd_nextsize == P)                                                                                          \</span><br><span class="line">            FD-&gt;fd_nextsize = FD-&gt;bk_nextsize = FD;                                                                         \</span><br><span class="line">          <span class="keyword">else</span>                                                                                                              \</span><br><span class="line">          &#123;                                                                                                                 \</span><br><span class="line">            FD-&gt;fd_nextsize = P-&gt;fd_nextsize;                                                                               \</span><br><span class="line">            FD-&gt;bk_nextsize = P-&gt;bk_nextsize;                                                                               \</span><br><span class="line">            P-&gt;fd_nextsize-&gt;bk_nextsize = FD;                                                                               \</span><br><span class="line">            P-&gt;bk_nextsize-&gt;fd_nextsize = FD;                                                                               \</span><br><span class="line">          &#125;                                                                                                                 \</span><br><span class="line">        &#125;                                                                                                                   \</span><br><span class="line">        <span class="keyword">else</span>                                                                                                                \</span><br><span class="line">        &#123;                                                                                                                   \</span><br><span class="line">          P-&gt;fd_nextsize-&gt;bk_nextsize = P-&gt;bk_nextsize;                                                                     \</span><br><span class="line">          P-&gt;bk_nextsize-&gt;fd_nextsize = P-&gt;fd_nextsize;                                                                     \</span><br><span class="line">        &#125;                                                                                                                   \</span><br><span class="line">      &#125;                                                                                                                     \</span><br><span class="line">    &#125;                                                                                                                       \</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+
+<h2 id="malloc-consolidate"><a href="#malloc-consolidate" class="headerlink" title="malloc_consolidate"></a>malloc_consolidate</h2><p>malloc_consolidate将遍历所有fast bin链表中的所有chunk，将它们与相邻的空闲chunk合并，然后放入unsorted bin中</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/*</span></span><br><span class="line"><span class="comment">  ------------------------- malloc_consolidate -------------------------</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">  malloc_consolidate is a specialized version of free() that tears</span></span><br><span class="line"><span class="comment">  down chunks held in fastbins.  Free itself cannot be used for this</span></span><br><span class="line"><span class="comment">  purpose since, among other things, it might place chunks back onto</span></span><br><span class="line"><span class="comment">  fastbins.  So, instead, we need to use a minor variant of the same</span></span><br><span class="line"><span class="comment">  code.</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">  Also, because this routine needs to be called the first time through</span></span><br><span class="line"><span class="comment">  malloc anyway, it turns out to be the perfect place to trigger</span></span><br><span class="line"><span class="comment">  initialization code.</span></span><br><span class="line"><span class="comment">*/</span></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">static</span> <span class="keyword">void</span> <span class="title">malloc_consolidate</span><span class="params">(mstate av)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">  mfastbinptr *fb;          <span class="comment">/* current fastbin being consolidated */</span></span><br><span class="line">  mfastbinptr *maxfb;       <span class="comment">/* last fastbin (for loop control) */</span></span><br><span class="line">  mchunkptr p;              <span class="comment">/* current chunk being consolidated */</span></span><br><span class="line">  mchunkptr nextp;          <span class="comment">/* next chunk to consolidate */</span></span><br><span class="line">  mchunkptr unsorted_bin;   <span class="comment">/* bin header */</span></span><br><span class="line">  mchunkptr first_unsorted; <span class="comment">/* chunk to link to */</span></span><br><span class="line"></span><br><span class="line">  <span class="comment">/* These have same use as in free() */</span></span><br><span class="line">  mchunkptr nextchunk;</span><br><span class="line">  INTERNAL_SIZE_T size;</span><br><span class="line">  INTERNAL_SIZE_T nextsize;</span><br><span class="line">  INTERNAL_SIZE_T prevsize;</span><br><span class="line">  <span class="keyword">int</span> nextinuse;</span><br><span class="line">  mchunkptr bck;</span><br><span class="line">  mchunkptr fwd;</span><br><span class="line"></span><br><span class="line">  <span class="comment">/*</span></span><br><span class="line"><span class="comment">    If max_fast is 0, we know that av hasn&#x27;t</span></span><br><span class="line"><span class="comment">    yet been initialized, in which case do so below</span></span><br><span class="line"><span class="comment">  */</span></span><br><span class="line"></span><br><span class="line">  <span class="keyword">if</span> (get_max_fast() != <span class="number">0</span>)<span class="comment">//如果av已经初始化</span></span><br><span class="line">  &#123;</span><br><span class="line">    <span class="comment">//设置av中没有fastchunks，因为即将全部合并</span></span><br><span class="line">    atomic_store_relaxed(&amp;av-&gt;have_fastchunks, <span class="literal">false</span>);</span><br><span class="line"></span><br><span class="line">    unsorted_bin = unsorted_chunks(av);</span><br><span class="line"></span><br><span class="line">    <span class="comment">/*</span></span><br><span class="line"><span class="comment">      Remove each chunk from fast bin and consolidate it, placing it</span></span><br><span class="line"><span class="comment">      then in unsorted bin. Among other reasons for doing this,</span></span><br><span class="line"><span class="comment">      placing in unsorted bin avoids needing to calculate actual bins</span></span><br><span class="line"><span class="comment">      until malloc is sure that chunks aren&#x27;t immediately going to be</span></span><br><span class="line"><span class="comment">      reused anyway.</span></span><br><span class="line"><span class="comment">    */</span></span><br><span class="line"></span><br><span class="line">    maxfb = &amp;fastbin(av, NFASTBINS - <span class="number">1</span>);<span class="comment">//size最大的fastbin</span></span><br><span class="line">    fb = &amp;fastbin(av, <span class="number">0</span>);<span class="comment">//size最小的fastbin</span></span><br><span class="line">    <span class="keyword">do</span></span><br><span class="line">    &#123;</span><br><span class="line">      p = atomic_exchange_acq(fb, <span class="literal">NULL</span>);<span class="comment">//p=fb</span></span><br><span class="line">      <span class="keyword">if</span> (p != <span class="number">0</span>)</span><br><span class="line">      &#123;</span><br><span class="line">        <span class="keyword">do</span></span><br><span class="line">        &#123;</span><br><span class="line">          check_inuse_chunk(av, p);</span><br><span class="line">          nextp = p-&gt;fd;</span><br><span class="line"></span><br><span class="line">          <span class="comment">/* Slightly streamlined version of consolidation code in free() */</span></span><br><span class="line">          size = chunksize(p);</span><br><span class="line">          nextchunk = chunk_at_offset(p, size);</span><br><span class="line">          nextsize = chunksize(nextchunk);</span><br><span class="line"></span><br><span class="line">          <span class="comment">//如果前一个chunk是没有被使用，就让它与p合并</span></span><br><span class="line">          <span class="keyword">if</span> (!prev_inuse(p))</span><br><span class="line">          &#123;</span><br><span class="line">            prevsize = prev_size(p);</span><br><span class="line">            size += prevsize;</span><br><span class="line">            p = chunk_at_offset(p, -((<span class="keyword">long</span>)prevsize));</span><br><span class="line">            unlink(av, p, bck, fwd);</span><br><span class="line">          &#125;</span><br><span class="line"></span><br><span class="line">          <span class="comment">//如果后一个chunk不是top chunk</span></span><br><span class="line">          <span class="keyword">if</span> (nextchunk != av-&gt;top)</span><br><span class="line">          &#123;</span><br><span class="line">            nextinuse = inuse_bit_at_offset(nextchunk, nextsize);</span><br><span class="line"></span><br><span class="line">            <span class="keyword">if</span> (!nextinuse)<span class="comment">//如果后一个chunk没有被使用</span></span><br><span class="line">            &#123;</span><br><span class="line">              size += nextsize;</span><br><span class="line">              unlink(av, nextchunk, bck, fwd);<span class="comment">//将后一个chunk从链表中解除</span></span><br><span class="line">              <span class="comment">//p的size增加，后一个chunk从链表中移除，即将p和后一个chunk合并</span></span><br><span class="line">            &#125;</span><br><span class="line">            <span class="keyword">else</span></span><br><span class="line">              <span class="comment">//将p设置为被使用状态</span></span><br><span class="line">              clear_inuse_bit_at_offset(nextchunk, <span class="number">0</span>);</span><br><span class="line"></span><br><span class="line">            <span class="comment">//将p放入unsorted bin链表</span></span><br><span class="line">            first_unsorted = unsorted_bin-&gt;fd;</span><br><span class="line">            unsorted_bin-&gt;fd = p;</span><br><span class="line">            first_unsorted-&gt;bk = p;</span><br><span class="line"></span><br><span class="line">            <span class="comment">//如果属于large bin将nextsize指针清空</span></span><br><span class="line">            <span class="keyword">if</span> (!in_smallbin_range(size))</span><br><span class="line">            &#123;</span><br><span class="line">              p-&gt;fd_nextsize = <span class="literal">NULL</span>;</span><br><span class="line">              p-&gt;bk_nextsize = <span class="literal">NULL</span>;</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            <span class="comment">//设置p相关的属性</span></span><br><span class="line">            set_head(p, size | PREV_INUSE);</span><br><span class="line">            p-&gt;bk = unsorted_bin;</span><br><span class="line">            p-&gt;fd = first_unsorted;</span><br><span class="line">            set_foot(p, size);</span><br><span class="line">          &#125;</span><br><span class="line"></span><br><span class="line">          <span class="comment">//如果下一个chunk是top chunk就将p并入top chunk</span></span><br><span class="line">          <span class="keyword">else</span></span><br><span class="line">          &#123;</span><br><span class="line">            size += nextsize;</span><br><span class="line">            set_head(p, size | PREV_INUSE);</span><br><span class="line">            av-&gt;top = p;</span><br><span class="line">          &#125;</span><br><span class="line"></span><br><span class="line">        &#125; <span class="keyword">while</span> ((p = nextp) != <span class="number">0</span>);<span class="comment">//遍历链表中的每一个chunk</span></span><br><span class="line">      &#125;</span><br><span class="line">    &#125; <span class="keyword">while</span> (fb++ != maxfb);<span class="comment">//遍历所有fast bin链表</span></span><br><span class="line">  &#125;</span><br><span class="line">  <span class="keyword">else</span><span class="comment">//如果av没有初始化就先初始化</span></span><br><span class="line">  &#123;</span><br><span class="line">    malloc_init_state(av);</span><br><span class="line">    check_malloc_state(av);</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>free的总体流程为：首先判断chunk是否由mmap分配，如果是调用<code>munmap_chunk</code>来释放，然后返回，否则进入<code>_int_free</code>来释放。在<code>_int_free</code>中，先判断是否满足tcache的范围，并且相应的tcache链表未满，如果是，将chunk放入tcache链表中后直接返回，否则判断是否属于fast bin的范围，如果是放入fast bin后结束，否则再次判断chunk是否由mmap分配，如果是调用<code>munmap_chunk</code>来释放，然后结束，如果不是且上一个chunk没有被使用，就向上合并。然后判断下一个chunk是不是top chunk，如果是则直接将当前chunk合并到top chunk，如果不是且下一个chunk没有被使用就向下合并，然后将合并后的chunk放入unsorted bin中。最后如果合并后的chunk的大小超过阈值，就调用<code>malloc_consolidate</code>来合并fast bin中的所有chunk并放入unsorted bin中，并考虑缩减top chunk。流程图如下：</p>
+<p><img src="https://z3.ax1x.com/2021/10/23/5RkpjI.png" alt="5RkpjI.png"></p>
+
+      
+    </div>
+    
+  </div>
+  
+    
+
+
+    <nav id="article-nav">
+        
+            <div id="article-nav-newer" class="article-nav-title">
+                <a href="/2021/11/08/CVE-2021-30145-mpv/">
+                    CVE-2021-30145分析与复现
+                </a>
+            </div>
+        
+        
+            <div id="article-nav-older" class="article-nav-title">
+                <a href="/2021/10/17/glibc-malloc%E5%8E%9F%E7%90%86%E5%8F%8A%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90/">
+                    glibc(2.26) malloc原理及源码分析
+                </a>
+            </div>
+        
+    </nav>
+
+  
+</article>
+
+    <div id="toc" class="toc-article">
+        <strong class="toc-title">文章目录</strong>
+        
+            <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#libc-free"><span class="toc-number">1.</span> <span class="toc-text">__libc_free</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#munmap-chunk"><span class="toc-number">1.1.</span> <span class="toc-text">munmap_chunk</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#int-free"><span class="toc-number">1.2.</span> <span class="toc-text">_int_free</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#tcache"><span class="toc-number">1.2.1.</span> <span class="toc-text">tcache</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#fast-bin"><span class="toc-number">1.2.2.</span> <span class="toc-text">fast bin</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#unsorted-bin-and-consolidate"><span class="toc-number">1.2.3.</span> <span class="toc-text">unsorted bin and consolidate</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#tcache-put"><span class="toc-number">1.3.</span> <span class="toc-text">tcache_put</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#unlink"><span class="toc-number">1.4.</span> <span class="toc-text">unlink</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#malloc-consolidate"><span class="toc-number">1.5.</span> <span class="toc-text">malloc_consolidate</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#%E6%80%BB%E7%BB%93"><span class="toc-number">2.</span> <span class="toc-text">总结</span></a></li></ol>
+        
+    </div>
+    <style>
+        .left-col .switch-btn,
+        .left-col .switch-area {
+            display: none;
+        }
+        .toc-level-3 i,
+        .toc-level-3 ol {
+            display: none !important;
+        }
+    </style>
+
+    <input type="button" id="tocButton" value="隐藏目录"  title="点击按钮隐藏或者显示文章目录">
+
+    <script>
+        yiliaConfig.toc = ["隐藏目录", "显示目录", !!"false"];
+    </script>
+
+
+
+
+
+    
+
+
+
+
+    <div class="scroll" id="post-nav-button">
+        
+            <a href="/2021/11/08/CVE-2021-30145-mpv/" title="上一篇: CVE-2021-30145分析与复现">
+                <i class="fa fa-angle-left"></i>
+            </a>
+        
+
+        <a title="文章列表"><i class="fa fa-bars"></i><i class="fa fa-times"></i></a>
+
+        
+            <a href="/2021/10/17/glibc-malloc%E5%8E%9F%E7%90%86%E5%8F%8A%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90/" title="下一篇: glibc(2.26) malloc原理及源码分析">
+                <i class="fa fa-angle-right"></i>
+            </a>
+        
+    </div>
+
+    <ul class="post-list"><li class="post-list-item"><a class="post-list-link" href="/2021/11/08/CVE-2021-30145-mpv/">CVE-2021-30145分析与复现</a></li><li class="post-list-item"><a class="post-list-link" href="/2021/10/23/glibc-free%E5%8E%9F%E7%90%86%E5%8F%8A%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90/">glibc(2.26) free原理及源码分析</a></li><li class="post-list-item"><a class="post-list-link" href="/2021/10/17/glibc-malloc%E5%8E%9F%E7%90%86%E5%8F%8A%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90/">glibc(2.26) malloc原理及源码分析</a></li><li class="post-list-item"><a class="post-list-link" href="/2021/09/10/hello-world/">Hello World</a></li></ul>
+
+
+
+
+    <script>
+        
+    </script>
+</div>
+      <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js">
+</script>
+<footer id="footer">
+    <div class="outer">
+        <div id="footer-info">
+            <div class="footer-left">
+                <i class="fa fa-copyright"></i> 
+                2021 Cyyyber
+            </div>
+            <div class="footer-right">
+                <a href="http://hexo.io/" target="_blank" title="快速、简洁且高效的博客框架">Hexo</a>  Theme <a href="https://github.com/MOxFIVE/hexo-theme-yelee" target="_blank" title="简而不减 Hexo 双栏博客主题  v3.5">Yelee</a> by MOxFIVE <i class="fa fa-heart animated infinite pulse"></i>
+            </div>
+        </div>
+        
+            <div class="visit">
+                
+                    <span id="busuanzi_container_site_pv" style='display:none'>
+                        <span id="site-visit" title="本站到访数"><i class="fa fa-user" aria-hidden="true"></i><span id="busuanzi_value_site_uv"></span>
+                        </span>
+                    </span>
+                
+                
+                    <span>| </span>
+                
+                
+                    <span id="busuanzi_container_page_pv" style='display:none'>
+                        <span id="page-visit"  title="本页阅读量"><i class="fa fa-eye animated infinite pulse" aria-hidden="true"></i><span id="busuanzi_value_page_pv"></span>
+                        </span>
+                    </span>
+                
+            </div>
+        
+    </div>
+</footer>
+    </div>
+    
+<script data-main="/js/main.js" src="//cdn.bootcss.com/require.js/2.2.0/require.min.js"></script>
+
+
+
+
+
+<div class="scroll" id="scroll">
+    <a href="#" title="返回顶部"><i class="fa fa-arrow-up"></i></a>
+    <a href="#comments" onclick="load$hide();" title="查看评论"><i class="fa fa-comments-o"></i></a>
+    <a href="#footer" title="转到底部"><i class="fa fa-arrow-down"></i></a>
+</div>
+<script>
+    // Open in New Window
+    
+        var oOpenInNew = {
+            
+            
+            
+            
+            
+            
+             archives: ".archive-article-title", 
+             miniArchives: "a.post-list-link", 
+            
+             friends: "#js-friends a", 
+             socail: ".social a" 
+        }
+        for (var x in oOpenInNew) {
+            $(oOpenInNew[x]).attr("target", "_blank");
+        }
+    
+</script>
+
+<script async src="https://dn-lbstatics.qbox.me/busuanzi/2.3/busuanzi.pure.mini.js">
+</script>
+  </div>
+</body>
+</html>
